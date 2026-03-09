@@ -1,180 +1,249 @@
+# =========================================================
+# CRYPTO RISK ANALYZER - AUTH APP (FINAL VERSION)
+# =========================================================
+# Features:
+# ✔ Modern UI
+# ✔ Header removed
+# ✔ Login/Register system (JSON storage)
+# ✔ Session handling
+# ✔ Logout button
+# ✔ Clean structure with comments (presentation ready)
+# =========================================================
+
+# ---------------- IMPORTS ----------------
 import streamlit as st
 import json
 import os
 
+
 # ---------------- PAGE CONFIG ----------------
+# Configure page layout and title
 st.set_page_config(
-    page_title="Crypto Risk Analyzer - Auth",
-    layout="wide",
+    page_title="Crypto Portfolio Manager",
+    layout="centered",
     initial_sidebar_state="collapsed"
 )
 
-# ---------------- USER DATABASE (Milestone 1 Local Storage) ----------------
-# [cite_start]Requirement: Store fetched data into local storage (JSON/CSV) 
+
+# ---------------- USER DATABASE (LOCAL STORAGE) ----------------
+# JSON file to store user data
 USER_DB = "users.json"
 
+
 def load_users():
+    """
+    Load all users from JSON file.
+    Returns dictionary of users.
+    """
     if not os.path.exists(USER_DB):
         return {}
+
     try:
         with open(USER_DB, "r") as f:
             return json.load(f)
     except:
         return {}
 
+
 def save_user(name, username, password):
+    """
+    Save a new user if username not already exists.
+    """
     users = load_users()
+
     if username in users:
         return False
-    users[username] = {"name": name, "password": password}
+
+    users[username] = {
+        "name": name,
+        "password": password
+    }
+
     with open(USER_DB, "w") as f:
         json.dump(users, f)
+
     return True
 
+
 # ---------------- SESSION STATE ----------------
+# Maintain login state
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
+
 if "auth_mode" not in st.session_state:
     st.session_state.auth_mode = "login"
 
-# ---------------- AUTH UI STYLING ----------------
+if "current_user" not in st.session_state:
+    st.session_state.current_user = ""
+
+
+# ---------------- CUSTOM UI (HEADER REMOVED + MODERN STYLE) ----------------
 st.markdown("""
 <style>
-[cite_start]/* 1. TOP NAVBAR (Milestone 1 UI Requirement) [cite: 9, 17] */
-[data-testid="stHeader"] {
-    background-color: #0d1b2a !important;
-    height: 60px !important;
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-    display: flex !important;
-    align-items: center !important;
-    border-bottom: 2px solid #4cc9f0 !important;
-    z-index: 9999 !important;
+
+/* -------- REMOVE STREAMLIT HEADER -------- */
+header {visibility: hidden;}
+[data-testid="stToolbar"] {display: none;}
+[data-testid="stDecoration"] {display: none;}
+[data-testid="stStatusWidget"] {display: none;}
+footer {visibility: hidden;}
+
+.block-container {
+    padding-top: 0rem !important;
 }
-header, [data-testid="stHeader"] { display: none !important; }
-.block-container { padding-top: 0rem !important; margin-top: -20px !important; }
 
-/* 2. BACKGROUND & CARD */
-.stApp { background-color: #0d1b2a !important; }
-.auth-card { background: transparent; width: 100%; max-width: 400px; margin: 60px auto; }
+/* -------- BACKGROUND -------- */
+.stApp {
+    background: linear-gradient(135deg,#0d1b2a,#1b263b,#415a77);
+}
 
+/* -------- CENTER CARD -------- */
+.auth-card {
+    background: rgba(255,255,255,0.06);
+    backdrop-filter: blur(12px);
+    padding: 40px;
+    border-radius: 18px;
+    box-shadow: 0px 10px 30px rgba(0,0,0,0.35);
+}
+
+/* -------- TITLE -------- */
 .auth-title {
-    color: #4cc9f0 !important; 
-    font-family: 'Inter', sans-serif;
-    font-size: 34px; font-weight: 700;
-    text-transform: uppercase; text-align: center; margin-bottom: 30px;
+    color: #4cc9f0;
+    text-align: center;
+    font-size: 32px;
+    font-weight: 800;
+    margin-bottom: 25px;
 }
 
-.field-label { color: #778da9; font-size: 13px; font-weight: 600; margin-bottom: 5px; display: block; }
+/* -------- INPUT -------- */
+input {
+    border-radius: 10px !important;
+    height: 45px !important;
+}
 
-/* 3. INPUTS & CYAN BUTTONS */
-input { background-color: #ffffff !important; color: #0d1b2a !important; border-radius: 8px !important; height: 48px !important; }
-
+/* -------- BUTTON -------- */
 div.stFormSubmitButton > button {
-    background-color: #4cc9f0 !important; color: #0d1b2a !important;
-    font-weight: 800 !important; width: 100% !important;
-    border-radius: 6px !important; border: none !important;
-    text-transform: uppercase; padding: 12px !important; margin-top: 20px;
+    background: linear-gradient(90deg,#4cc9f0,#4895ef) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: bold !important;
+    height: 45px !important;
 }
 
-/* 4. TOGGLE TEXT STYLING */
-.toggle-question {
-    color: #ffffff !important; /* Changed to White as requested */
-    font-size: 14px;
-    margin-top: 25px;
-    display: inline-block;
-}
-
-/* Make the Streamlit button look like a Cyan text link */
+/* -------- LINK BUTTON -------- */
 div.stButton > button {
     background: none !important;
     border: none !important;
-    padding: 0 !important;
     color: #4cc9f0 !important;
     text-decoration: underline !important;
-    font-size: 14px !important;
-    font-weight: 700 !important;
-    text-transform: none !important;
-    box-shadow: none !important;
-    display: inline !important;
-    width: auto !important;
-    margin-left: 5px !important;
+    font-weight: bold !important;
 }
 
-div.stButton > button:hover {
-    color: #ffffff !important;
-}
 </style>
 """, unsafe_allow_html=True)
 
-# [cite_start]---------------- NAVBAR (Milestone 1 Project Branding) [cite: 1, 6] ----------------
-st.markdown('<div style="position: fixed; top: 18px; left: 20px; z-index: 10000; color: white; font-weight: 800; font-size: 20px; letter-spacing: 1px;"></div>', unsafe_allow_html=True)
 
-# [cite_start]---------------- AUTH PAGES (Decision Support Module) [cite: 20] ----------------
+# ---------------- AUTH UI FUNCTION ----------------
 def show_auth():
-    _, col_mid, _ = st.columns([1, 1.5, 1])
-    
-    with col_mid:
+    """
+    Display Login / Register UI
+    """
+
+    col1, col2, col3 = st.columns([1, 2, 1])
+
+    with col2:
         st.markdown('<div class="auth-card">', unsafe_allow_html=True)
-        
+
+        # ---------------- LOGIN PAGE ----------------
         if st.session_state.auth_mode == "login":
-            st.markdown('<div class="auth-title">SIGN IN</div>', unsafe_allow_html=True)
+
+            st.markdown('<div class="auth-title">Sign In</div>', unsafe_allow_html=True)
+
             with st.form("login_form"):
-                st.markdown('<span class="field-label">USERNAME</span>', unsafe_allow_html=True)
-                user = st.text_input("user", label_visibility="collapsed", placeholder="Enter username")
-                st.markdown('<span class="field-label">PASSWORD</span>', unsafe_allow_html=True)
-                pwd = st.text_input("pass", type="password", label_visibility="collapsed", placeholder="••••••••")
-                
-                if st.form_submit_button("LOGIN"):
+
+                username = st.text_input("Username", placeholder="Enter username")
+                password = st.text_input("Password", type="password", placeholder="Enter password")
+
+                if st.form_submit_button("Login"):
+
                     users = load_users()
-                    if user in users and users[user]["password"] == pwd:
+
+                    if username in users and users[username]["password"] == password:
                         st.session_state.authenticated = True
-                        st.session_state.current_user = users[user]["name"]
+                        st.session_state.current_user = users[username]["name"]
+                        st.success("Login successful!")
                         st.rerun()
                     else:
-                        st.error("Invalid credentials.")
-            
-            # White Question + Cyan Link
-            st.markdown('<span class="toggle-question">Don\'t have an account?</span>', unsafe_allow_html=True)
-            if st.button("Register", key="go_to_reg"):
+                        st.error("Invalid username or password")
+
+            st.write("Don't have an account?")
+            if st.button("Register"):
                 st.session_state.auth_mode = "register"
                 st.rerun()
 
+        # ---------------- REGISTER PAGE ----------------
         else:
-            st.markdown('<div class="auth-title">REGISTER</div>', unsafe_allow_html=True)
-            with st.form("reg_form"):
-                st.markdown('<span class="field-label">NAME</span>', unsafe_allow_html=True)
-                reg_name = st.text_input("reg_name", label_visibility="collapsed", placeholder="Full Name")
-                st.markdown('<span class="field-label">USERNAME</span>', unsafe_allow_html=True)
-                reg_user = st.text_input("reg_user", label_visibility="collapsed", placeholder="Username")
-                st.markdown('<span class="field-label">PASSWORD</span>', unsafe_allow_html=True)
-                reg_pwd = st.text_input("reg_pass", type="password", label_visibility="collapsed", placeholder="Password")
-                
-                if st.form_submit_button("REGISTER"):
-                    if reg_name and reg_user and reg_pwd:
-                        if save_user(reg_name, reg_user, reg_pwd):
-                            st.success("Registration Successful!")
+
+            st.markdown('<div class="auth-title">Register</div>', unsafe_allow_html=True)
+
+            with st.form("register_form"):
+
+                name = st.text_input("Full Name", placeholder="Enter full name")
+                username = st.text_input("Username", placeholder="Choose username")
+                password = st.text_input("Password", type="password", placeholder="Create password")
+
+                if st.form_submit_button("Register"):
+
+                    if name and username and password:
+
+                        if save_user(name, username, password):
+                            st.success("Registration successful!")
                             st.session_state.auth_mode = "login"
                             st.rerun()
                         else:
-                            st.error("Username already exists.")
-                    else:
-                        st.warning("All fields required.")
+                            st.error("Username already exists")
 
-            # White Question + Cyan Link
-            st.markdown('<span class="toggle-question">Already have an account?</span>', unsafe_allow_html=True)
-            if st.button("Login", key="go_to_login"):
+                    else:
+                        st.warning("Please fill all fields")
+
+            st.write("Already have an account?")
+            if st.button("Login"):
                 st.session_state.auth_mode = "login"
                 st.rerun()
-        
+
         st.markdown('</div>', unsafe_allow_html=True)
 
-# [cite_start]---------------- APP FLOW (Milestone 1 Workflow) [cite: 238] ----------------
+
+# ---------------- LOGOUT FUNCTION ----------------
+def logout():
+    """Clear session and logout user"""
+    st.session_state.authenticated = False
+    st.session_state.current_user = ""
+    st.session_state.auth_mode = "login"
+    st.rerun()
+
+
+# ---------------- MAIN FLOW ----------------
 if not st.session_state.authenticated:
+
+    # Show login/register UI
     show_auth()
+
 else:
-    # [cite_start]Navigate to the Data Visualization Module [cite: 33, 248]
+
+    # Top welcome + logout row
+    col1, col2 = st.columns([5, 1])
+
+    with col1:
+        st.markdown(f"### 👋 Welcome, **{st.session_state.current_user}**")
+
+    with col2:
+        if st.button("Logout"):
+            logout()
+
+    st.divider()
+
+    # Open dashboard module after login
     import dashboard
     dashboard.main()
