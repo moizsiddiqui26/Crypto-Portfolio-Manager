@@ -16,7 +16,13 @@ def load_data():
     return df
 
 df=load_data()
-
+if page=="📊 Portfolio Dashboard":
+# ---------------- PAGE SELECTOR ----------------
+page=st.sidebar.radio("📂 Select Page",[
+"📊 Portfolio Dashboard",
+"⚙ Rule-Based Investment Mix"
+])
+    # (PASTE YOUR CURRENT DASHBOARD CODE HERE)
 # ---------------- SIDEBAR FILTER ----------------
 st.sidebar.header("📊 Portfolio Controls")
 
@@ -100,3 +106,66 @@ st.plotly_chart(fig_return,use_container_width=True)
 # =========================================================
 st.subheader("📄 Raw Data Preview")
 st.dataframe(filtered.sort_values("Date",ascending=False),use_container_width=True)
+# =========================================================
+# RULE-BASED INVESTMENT MIX PAGE
+# =========================================================
+
+if page=="⚙ Rule-Based Investment Mix":
+
+    st.title("⚙ Rule-Based Investment Mix Calculator")
+
+    st.write("""
+Rule-based method mixes investments using volatility and return.
+Goal → Best return with controlled risk.
+""")
+
+    # ---------------- RISK LEVEL SELECT ----------------
+    risk_level=st.selectbox("Select Risk Level",["Low","Medium","High"])
+
+    # ---------------- CALCULATE METRICS ----------------
+    returns=df.groupby("Crypto").apply(
+        lambda x:(x["Close"].iloc[-1]-x["Close"].iloc[0])/x["Close"].iloc[0]
+    ).reset_index(name="Return")
+
+    volatility=df.groupby("Crypto")["Close"].std().reset_index(name="Volatility")
+
+    metrics=returns.merge(volatility,on="Crypto")
+
+    # Normalize values
+    metrics["Return_norm"]=metrics["Return"]/metrics["Return"].max()
+    metrics["Vol_norm"]=metrics["Volatility"]/metrics["Volatility"].max()
+
+    # ---------------- RULE-BASED LOGIC ----------------
+    if risk_level=="Low":
+        metrics["Score"]=0.7*(1-metrics["Vol_norm"])+0.3*(metrics["Return_norm"])
+
+    elif risk_level=="Medium":
+        metrics["Score"]=0.5*(1-metrics["Vol_norm"])+0.5*(metrics["Return_norm"])
+
+    else:
+        metrics["Score"]=0.3*(1-metrics["Vol_norm"])+0.7*(metrics["Return_norm"])
+
+    # Convert score to allocation %
+    metrics["Allocation %"]=metrics["Score"]/metrics["Score"].sum()*100
+
+    st.subheader("📊 Recommended Allocation")
+    st.dataframe(metrics[["Crypto","Allocation %"]])
+
+    # ---------------- PIE CHART ----------------
+    import plotly.express as px
+
+    fig=px.pie(metrics,names="Crypto",values="Allocation %",hole=0.4,
+               title="Recommended Portfolio Mix")
+
+    st.plotly_chart(fig,use_container_width=True)
+
+    # ---------------- SAMPLE TEST EXPLANATION ----------------
+    st.subheader("📌 Rule Explanation")
+
+    st.write("""
+• Low Risk → More weight to low volatility coins  
+• Medium Risk → Balanced approach  
+• High Risk → More weight to high return coins  
+
+Tested using historical price dataset.
+""")
