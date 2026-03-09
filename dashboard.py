@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-
+import plotly.express as px 
 @st.cache_data
 def load_data():
     return pd.read_csv("preprocessed_data.csv")
