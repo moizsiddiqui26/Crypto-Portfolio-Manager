@@ -288,11 +288,11 @@ def main():
         st.markdown("<h2 style='color:#4cc9f0; text-align:center;'>📞 Connect with the Developer</h2>", unsafe_allow_html=True)
         cont_col1, cont_col2, cont_col3 = st.columns(3)
         with cont_col1:
-            st.markdown("""<div class="insight-box" style="height:200px; text-align:center; border-left:none; border-top:5px solid #4cc9f0;"><b style="color:#4cc9f0; font-size:18px;">📧 Email Support</b><br><br><span style="color:white;">Direct technical queries to:</span><br><b style="color:#ffffff;">support@cryptorisk.com</b></div>""", unsafe_allow_html=True)
+            st.markdown("""<div class="insight-box" style="height:200px; text-align:center; border-left:none; border-top:5px solid #4cc9f0;"><b style="color:#4cc9f0; font-size:18px;">📧 Email Support</b><br><br><span style="color:white;">Direct technical queries to:</span><br><b style="color:#ffffff;">managercryptoprotfolio@gmail.com</b></div>""", unsafe_allow_html=True)
         with cont_col2:
-            st.markdown("""<div class="insight-box" style="height:200px; text-align:center; border-left:none; border-top:5px solid #ffffff;"><b style="color:#ffffff; font-size:18px;">📍 Location</b><br><br><span style="color:white;">Project Head Office:</span><br><b style="color:#ffffff;">Nagpur, India</b></div>""", unsafe_allow_html=True)
+            st.markdown("""<div class="insight-box" style="height:200px; text-align:center; border-left:none; border-top:5px solid #ffffff;"><b style="color:#ffffff; font-size:18px;">📍 Location</b><br><br><span style="color:white;">Project Head Office:</span><br><b style="color:#ffffff;">Nanded, India</b></div>""", unsafe_allow_html=True)
         with cont_col3:
-            st.markdown("""<div class="insight-box" style="height:200px; text-align:center; border-left:none; border-top:5px solid #4cc9f0;"><b style="color:#4cc9f0; font-size:18px;">💻 GitHub</b><br><br><span style="color:white;">Source Code:</span><br><b style="color:#ffffff;">github.com/zishan-khan</b></div>""", unsafe_allow_html=True)
+            st.markdown("""<div class="insight-box" style="height:200px; text-align:center; border-left:none; border-top:5px solid #4cc9f0;"><b style="color:#4cc9f0; font-size:18px;">💻 GitHub</b><br><br><span style="color:white;">Source Code:</span><br><b style="color:#ffffff;">github.com/moizsiddiqui26</b></div>""", unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
