@@ -1,36 +1,25 @@
-# =========================================================
-# CRYPTO PORTFOLIO MANAGER - DASHBOARD (FINAL FIXED)
-# =========================================================
-
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 
-
-# =========================================================
-# LOAD DATA
-# =========================================================
 @st.cache_data
 def load_data():
-    df=pd.read_csv("preprocessed_data.csv")
-    df["Date"]=pd.to_datetime(df["Date"])
-    return df
+    return pd.read_csv("preprocessed_data.csv")
 
-
-# =========================================================
-# MAIN FUNCTION (IMPORTANT 🔥)
-# =========================================================
 def main():
 
     df=load_data()
 
-    # ---------------- PAGE SELECTOR ----------------
     page=st.sidebar.radio("📂 Select Page",[
     "📊 Portfolio Dashboard",
     "⚙ Rule-Based Investment Mix"
     ])
 
-    # =====================================================
+    if page=="📊 Portfolio Dashboard":
+        st.title("Dashboard Working ✅")
+
+    if page=="⚙ Rule-Based Investment Mix":
+        st.title("Calculator Working ✅")
+# =====================================================
     # PAGE 1 — PORTFOLIO DASHBOARD
     # =====================================================
     if page=="📊 Portfolio Dashboard":
