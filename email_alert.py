@@ -2,7 +2,7 @@ import smtplib
 from email.mime.text import MIMEText
 
 SENDER="managercryptoportfolio@gmail.com"
-APP_PASSWORD="Manager@123"
+APP_PASSWORD="Manager@26"
 
 def send_alert(df):
 
