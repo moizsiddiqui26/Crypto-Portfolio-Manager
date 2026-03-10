@@ -2,7 +2,7 @@ import smtplib
 from email.mime.text import MIMEText
 
 SENDER="managercryptoportfolio@gmail.com"
-APP_PASS="PUT_APP_PASSWORD"
+APP_PASS="ajlu qjxx absa heei"
 
 def send_registration_mail(user,name):
 
