@@ -1,22 +1,17 @@
 # =====================================================
-# CRYPTO PORTFOLIO MANAGER - PREMIUM DASHBOARD (FINAL)
+# CRYPTO PORTFOLIO MANAGER - PREMIUM DASHBOARD
 # =====================================================
 
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# ---------------- LOAD DATA ----------------
 @st.cache_data
 def load_data():
     df=pd.read_csv("preprocessed_data.csv")
     df["Date"]=pd.to_datetime(df["Date"])
     return df
 
-
-# =====================================================
-# MAIN FUNCTION
-# =====================================================
 def main():
 
     df=load_data()
@@ -56,26 +51,15 @@ def main():
         fig2=px.pie(latest,names="Crypto",values="Close",hole=.4)
         st.plotly_chart(fig2,use_container_width=True)
 
-
     # =================================================
-    # MIX CALCULATOR PAGE
+    # MIX CALCULATOR
     # =================================================
     if page=="⚙ Investment Mix Calculator":
 
-        st.header("⚙ Investment Mix Calculator")
+        st.header("⚙ Rule-Based Investment Mix")
 
-        # ---------------- INPUT SECTION ----------------
-        col1,col2=st.columns(2)
+        risk=st.selectbox("Risk Level",["Low","Medium","High"])
 
-        with col1:
-            amount=st.number_input("💰 Amount to Invest ($)",min_value=1.0,value=1000.0)
-
-        with col2:
-            risk=st.selectbox("📊 Select Risk Level",["Low","Medium","High"])
-
-        st.divider()
-
-        # ---------------- RULE CALCULATION ----------------
         returns=df.groupby("Crypto").apply(
             lambda x:(x["Close"].iloc[-1]-x["Close"].iloc[0])/x["Close"].iloc[0]
         ).reset_index(name="Return")
@@ -84,11 +68,9 @@ def main():
 
         m=returns.merge(vol,on="Crypto")
 
-        # Normalize
         m["Return_n"]=m["Return"]/m["Return"].max()
         m["Vol_n"]=m["Vol"]/m["Vol"].max()
 
-        # Rule Logic
         if risk=="Low":
             m["Score"]=.7*(1-m["Vol_n"])+.3*m["Return_n"]
         elif risk=="Medium":
@@ -98,25 +80,7 @@ def main():
 
         m["Allocation %"]=m["Score"]/m["Score"].sum()*100
 
-        # ---------------- AMOUNT CALCULATION ----------------
-        m["Investment Amount ($)"]=m["Allocation %"]/100*amount
+        st.dataframe(m[["Crypto","Allocation %"]],use_container_width=True)
 
-        st.subheader("📊 Investment Breakdown")
-        st.dataframe(m[["Crypto","Allocation %","Investment Amount ($)"]],
-                     use_container_width=True)
-
-        # ---------------- PIE CHART ----------------
-        fig3=px.pie(m,names="Crypto",values="Investment Amount ($)",hole=.4,
-                    title="Investment Distribution")
-
+        fig3=px.pie(m,names="Crypto",values="Allocation %",hole=.4)
         st.plotly_chart(fig3,use_container_width=True)
-
-        # ---------------- DOWNLOAD CSV ----------------
-        csv=m[["Crypto","Allocation %","Investment Amount ($)"]].to_csv(index=False)
-
-        st.download_button(
-            label="⬇ Download Allocation CSV",
-            data=csv,
-            file_name="crypto_investment_mix.csv",
-            mime="text/csv"
-        )
