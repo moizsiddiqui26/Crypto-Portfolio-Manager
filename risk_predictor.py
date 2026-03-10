@@ -1,21 +1,17 @@
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor
 
-def calc_risk(data):
-    vol=data["Close"].std()
-    if vol>2000: return "High"
-    elif vol>1000: return "Medium"
+def calc_risk(row):
+    if row["Price"]>30000: return "High"
+    elif row["Price"]>10000: return "Medium"
     return "Low"
 
 def run_risk_checks(df):
-    groups=[g for _,g in df.groupby("Crypto")]
 
     with ThreadPoolExecutor() as ex:
-        risks=list(ex.map(calc_risk,groups))
+        risks=list(ex.map(calc_risk,[row for _,row in df.iterrows()]))
 
-    result=pd.DataFrame({
-        "Crypto":df["Crypto"].unique(),
+    return pd.DataFrame({
+        "Crypto":df["Crypto"],
         "Risk":risks
     })
-
-    return result
