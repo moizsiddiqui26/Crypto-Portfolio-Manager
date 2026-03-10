@@ -17,37 +17,34 @@ def save_user(name,email,password):
     return True
 
 if "auth" not in st.session_state: st.session_state.auth=False
+tab1,tab2=st.tabs(["Login","Register"])
 
 # ---------------- LOGIN ----------------
-if not st.session_state.auth:
+with tab1:
+    email_login=st.text_input("Email",key="login_email")
+    pwd_login=st.text_input("Password",type="password",key="login_pwd")
 
-    st.title("🚀 Crypto Investment Manager")
+    if st.button("Login",key="login_btn"):
+        users=load_users()
+        if email_login in users and users[email_login]["password"]==pwd_login:
+            st.session_state.auth=True
+            st.session_state.user=email_login
+            st.rerun()
+        else:
+            st.error("Invalid credentials")
 
-    tab1,tab2=st.tabs(["Login","Register"])
+# ---------------- REGISTER ----------------
+with tab2:
+    name_reg=st.text_input("Name",key="reg_name")
+    email_reg=st.text_input("Register Email",key="reg_email")
+    pwd_reg=st.text_input("Password",type="password",key="reg_pwd")
 
-    with tab1:
-        email=st.text_input("Email")
-        pwd=st.text_input("Password",type="password")
-
-        if st.button("Login"):
-            users=load_users()
-            if email in users and users[email]["password"]==pwd:
-                st.session_state.auth=True
-                st.session_state.user=email
-                st.rerun()
-            else: st.error("Invalid credentials")
-
-    with tab2:
-        name=st.text_input("Name")
-        email=st.text_input("Register Email")
-        pwd=st.text_input("Password",type="password")
-
-        if st.button("Register"):
-            if save_user(name,email,pwd):
-                send_registration_mail(email,name)
-                st.success("Registered + Email Sent")
-            else: st.error("User exists")
-
+    if st.button("Register",key="reg_btn"):
+        if save_user(name_reg,email_reg,pwd_reg):
+            send_registration_mail(email_reg,name_reg)
+            st.success("Registered + Email Sent")
+        else:
+            st.error("User exists")
 else:
     st.success(f"Welcome {st.session_state.user}")
     if st.button("Logout"):
@@ -56,3 +53,4 @@ else:
 
     import dashboard
     dashboard.main()
+
