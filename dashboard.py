@@ -1,184 +1,195 @@
 # =====================================================
-# CRYPTO INVESTMENT MANAGER - PRO DASHBOARD
+# CRYPTO INVESTMENT MANAGER — FINAL ADVANCED DASHBOARD
 # =====================================================
 
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import os
+import plotly.graph_objects as go
 from crypto_api import fetch_data
+from mix_calculator import calculate_mix
 from risk_predictor import run_risk
+from report_saver import save_csv
 from email_alert import send_alert
 
-HISTORY_FILE="investment_history.csv"
 
 # =====================================================
-# SAVE USER INVESTMENT HISTORY
-# =====================================================
-def save_history(user,df):
-    df["User"]=user
-    if os.path.exists(HISTORY_FILE):
-        old=pd.read_csv(HISTORY_FILE)
-        df=pd.concat([old,df])
-    df.to_csv(HISTORY_FILE,index=False)
-
-def load_history(user):
-    if not os.path.exists(HISTORY_FILE):
-        return pd.DataFrame()
-    df=pd.read_csv(HISTORY_FILE)
-    return df[df["User"]==user]
-
-
-# =====================================================
-# MAIN
+# MAIN FUNCTION
 # =====================================================
 def main():
 
     df=fetch_data()
 
     page=st.sidebar.radio("📂 Navigation",
-    ["📊 Dashboard (EDA)","💼 Smart Investment Mix","⚠ Risk Checker"])
+    ["📊 Dashboard (EDA)","💼 Investment Mix","⚠ Risk Checker"])
+
 
 # =====================================================
-# 1️⃣ DASHBOARD + EDA
+# 📊 DASHBOARD WITH FULL EDA
 # =====================================================
     if page=="📊 Dashboard (EDA)":
 
-        st.markdown("## 📊 Crypto Market Analysis")
+        st.markdown("## 📊 Crypto Market EDA Dashboard")
 
         st.dataframe(df,use_container_width=True)
 
-        col1,col2=st.columns(2)
+        st.divider()
 
-        with col1:
-            fig=px.bar(df,x="Crypto",y="Price",
-                       title="Live Price Comparison")
-            st.plotly_chart(fig,use_container_width=True)
+        # -------- PRICE DISTRIBUTION --------
+        st.subheader("📌 Price Distribution")
 
-        with col2:
-            fig2=px.pie(df,names="Crypto",values="Price",
-                        title="Market Distribution")
-            st.plotly_chart(fig2,use_container_width=True)
+        fig=px.histogram(df,x="Price",nbins=20,title="Crypto Price Distribution")
+        st.plotly_chart(fig,use_container_width=True)
 
-        # ---------- EXTRA EDA ----------
-        st.markdown("### 📈 Price Distribution")
-        fig3=px.box(df,y="Price",points="all")
+        # -------- BAR CHART --------
+        st.subheader("📊 Crypto Price Comparison")
+
+        fig2=px.bar(df,x="Crypto",y="Price",color="Crypto",
+                    title="Live Crypto Price Comparison")
+        st.plotly_chart(fig2,use_container_width=True)
+
+        # -------- PIE SHARE --------
+        st.subheader("🥧 Market Share View")
+
+        fig3=px.pie(df,names="Crypto",values="Price",hole=.4,
+                    title="Relative Market Share")
         st.plotly_chart(fig3,use_container_width=True)
 
-        st.markdown("### 🔎 Statistical Summary")
-        st.write(df.describe())
+        # -------- STATISTICS --------
+        st.subheader("📈 Summary Statistics")
+
+        stats=df["Price"].describe()
+        st.dataframe(stats)
+
+        # -------- BOX PLOT --------
+        st.subheader("📦 Price Spread Analysis")
+
+        fig4=px.box(df,y="Price",points="all")
+        st.plotly_chart(fig4,use_container_width=True)
+
 
 # =====================================================
-# 2️⃣ SMART MIX CALCULATOR
+# 💼 ADVANCED INVESTMENT MIX UI
 # =====================================================
-    if page=="💼 Smart Investment Mix":
+    if page=="💼 Investment Mix":
 
-        st.markdown("## 💼 Smart Investment Strategy Builder")
+        st.markdown("## 💼 Strategy-Based Investment Mix")
 
-        st.info("Uses past crypto price behavior to determine best strategy.")
+        st.write("Plan investments using historical price-based strategy.")
+
+        # -------- INPUT STEP --------
+        st.markdown("### Step 1️⃣ Enter Investment Details")
 
         col1,col2=st.columns(2)
 
         with col1:
-            amount=st.number_input("💰 Enter Amount",
-                                   min_value=100.0,value=1000.0,
-                                   step=100.0,key="smart_amt")
+            amount=st.number_input("💰 Amount ($)",
+                                   min_value=100.0,
+                                   value=1000.0,
+                                   step=100.0)
 
         with col2:
-            risk=st.selectbox("📊 Investment Level",
-                              ["Low","Medium","High"],
-                              key="smart_lvl")
+            level=st.selectbox("📊 Investment Level",
+                               ["Low","Medium","High"])
 
-        # ---------------- CALCULATE ----------------
+        # -------- CALCULATE --------
         if st.button("🚀 Calculate Strategy",use_container_width=True):
 
-            # --- risk score using past price spread ---
-            df["Return"]=df.Price/df.Price.max()
-            df["Volatility"]=df.Price/df.Price.mean()
+            # simulate past days data using variation
+            hist_df=df.copy()
+            hist_df["PastReturn"]=hist_df["Price"]/hist_df["Price"].mean()
+            hist_df["Volatility"]=hist_df["Price"]/hist_df["Price"].std()
 
-            if risk=="Low":
-                df["Score"]=0.7*(1-df.Volatility)+0.3*df.Return
-                strategy="Focus on stable coins with consistent returns."
-
-            elif risk=="Medium":
-                df["Score"]=0.5*(1-df.Volatility)+0.5*df.Return
-                strategy="Balanced portfolio across major cryptos."
-
-            else:
-                df["Score"]=0.3*(1-df.Volatility)+0.7*df.Return
-                strategy="Aggressive strategy targeting growth coins."
-
-            df["Allocation %"]=df.Score/df.Score.sum()*100
-            df["Investment"]=df["Allocation %"]/100*amount
+            result=calculate_mix(hist_df.copy(),amount,level)
 
             st.divider()
 
-            # ---------- TABLE ----------
-            st.subheader("📋 Investment Strategy Table")
-            show=df[["Crypto","Allocation %","Investment"]]
-            st.dataframe(show,use_container_width=True)
+            # -------- RESULT TABLE --------
+            st.subheader("📋 Investment Strategy")
 
-            # ---------- CHART ----------
-            st.subheader("📊 Strategy Visualization")
-            fig=px.pie(show,names="Crypto",values="Investment",hole=0.4)
+            st.dataframe(result[["Crypto","Allocation %","Investment"]],
+                         use_container_width=True)
+
+            # -------- CHART --------
+            st.subheader("📊 Allocation Chart")
+
+            fig=px.pie(result,names="Crypto",values="Investment",
+                       hole=0.45,title="Optimized Strategy Mix")
+
             st.plotly_chart(fig,use_container_width=True)
 
-            # ---------- SAVE HISTORY ----------
-            save_history(st.session_state.user,show)
+            # -------- STRATEGY TEXT --------
+            st.subheader("🧠 Strategy Insight")
 
-            # ---------- STRATEGY TEXT ----------
-            st.success(f"📌 Recommended Strategy: {strategy}")
+            if level=="Low":
+                st.info("Low risk strategy focuses on stable coins with low volatility.")
 
-            # ---------- CSV ----------
-            st.download_button("⬇ Download Strategy CSV",
-                               show.to_csv(index=False),
-                               "strategy.csv",
+            elif level=="Medium":
+                st.info("Medium risk balances return and volatility evenly.")
+
+            else:
+                st.warning("High risk focuses on aggressive growth opportunities.")
+
+            # -------- CSV --------
+            csv=save_csv(result)
+            st.download_button("⬇ Download Strategy CSV",csv,
+                               "strategy_report.csv",
                                use_container_width=True)
 
-        # ---------- USER HISTORY ----------
+        # -------- LEVEL DESCRIPTION --------
         st.divider()
-        st.markdown("## 📈 Your Past Investments")
 
-        hist=load_history(st.session_state.user)
+        st.markdown("## 📘 Investment Level Guide")
 
-        if not hist.empty:
+        c1,c2,c3=st.columns(3)
 
-            st.dataframe(hist,use_container_width=True)
+        c1.markdown("""### 🟢 Low Risk
+• Based on stable price trends  
+• Lower volatility  
+• Safer returns  
+""")
 
-            st.markdown("### 📊 Investment Growth Trend")
+        c2.markdown("""### 🟡 Medium Risk
+• Balanced returns  
+• Moderate movement  
+• Recommended level  
+""")
 
-            fig_hist=px.line(hist,x=hist.index,y="Investment",
-                             color="Crypto",
-                             title="Past Investment Growth")
+        c3.markdown("""### 🔴 High Risk
+• Based on aggressive growth  
+• Higher volatility  
+• Best for active traders  
+""")
 
-            st.plotly_chart(fig_hist,use_container_width=True)
-
-        else:
-            st.info("No past investments yet.")
 
 # =====================================================
-# 3️⃣ RISK CHECKER (UPGRADED UI)
+# ⚠ UPGRADED RISK CHECKER
 # =====================================================
     if page=="⚠ Risk Checker":
 
-        st.markdown("## ⚠ Parallel Risk Checker")
-
-        st.write("Analyzes crypto volatility using parallel processing.")
+        st.markdown("## ⚠ Smart Risk Checker")
 
         if st.button("🔍 Run Risk Analysis",use_container_width=True):
 
             result=run_risk(df)
 
-            st.subheader("📋 Risk Table")
+            st.subheader("📋 Risk Report")
             st.dataframe(result,use_container_width=True)
 
             st.subheader("📊 Risk Visualization")
 
             fig=px.bar(result,x="Crypto",y="Price",
-                       color="Risk",title="Risk Comparison")
+                       color="Risk",
+                       title="Risk Level Distribution")
 
             st.plotly_chart(fig,use_container_width=True)
 
+            csv=save_csv(result)
+
+            st.download_button("⬇ Download Risk CSV",
+                               csv,"risk_report.csv",
+                               use_container_width=True)
+
             if (result["Risk"]=="High").any():
                 send_alert(result)
-                st.warning("🚨 High Risk Alert Sent!")
+                st.error("🚨 High Risk Alert Sent!")
