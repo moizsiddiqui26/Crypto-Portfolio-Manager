@@ -1,59 +1,58 @@
-import streamlit as st
-import json,os
+import streamlit as st, json, os
+from email_alert import send_registration_mail
 
-st.set_page_config(page_title="Crypto Portfolio Manager",layout="wide")
+st.set_page_config(page_title="Crypto Investment Manager",layout="wide")
 
 USER_DB="users.json"
 
 def load_users():
-    if not os.path.exists(USER_DB):
-        return {}
-    with open(USER_DB,"r") as f:
-        return json.load(f)
+    if not os.path.exists(USER_DB): return {}
+    with open(USER_DB) as f: return json.load(f)
 
-def save_user(name,u,p):
+def save_user(name,email,password):
     users=load_users()
-    if u in users: return False
-    users[u]={"name":name,"password":p}
+    if email in users: return False
+    users[email]={"name":name,"password":password}
     with open(USER_DB,"w") as f: json.dump(users,f)
     return True
 
 if "auth" not in st.session_state: st.session_state.auth=False
-if "mode" not in st.session_state: st.session_state.mode="login"
 
-def login_ui():
-    st.title("🚀 Crypto Portfolio Manager")
-
-    if st.session_state.mode=="login":
-        with st.form("login"):
-            u=st.text_input("Username")
-            p=st.text_input("Password",type="password")
-            if st.form_submit_button("Login"):
-                users=load_users()
-                if u in users and users[u]["password"]==p:
-                    st.session_state.auth=True
-                    st.session_state.user=users[u]["name"]
-                    st.rerun()
-                else: st.error("Invalid login")
-
-        if st.button("Register"): st.session_state.mode="register";st.rerun()
-
-    else:
-        with st.form("reg"):
-            n=st.text_input("Name")
-            u=st.text_input("Username")
-            p=st.text_input("Password",type="password")
-            if st.form_submit_button("Register"):
-                if save_user(n,u,p): st.success("Registered");st.session_state.mode="login";st.rerun()
-                else: st.error("User exists")
-
-        if st.button("Back"): st.session_state.mode="login";st.rerun()
-
+# ---------------- LOGIN ----------------
 if not st.session_state.auth:
-    login_ui()
+
+    st.title("🚀 Crypto Investment Manager")
+
+    tab1,tab2=st.tabs(["Login","Register"])
+
+    with tab1:
+        email=st.text_input("Email")
+        pwd=st.text_input("Password",type="password")
+
+        if st.button("Login"):
+            users=load_users()
+            if email in users and users[email]["password"]==pwd:
+                st.session_state.auth=True
+                st.session_state.user=email
+                st.rerun()
+            else: st.error("Invalid credentials")
+
+    with tab2:
+        name=st.text_input("Name")
+        email=st.text_input("Register Email")
+        pwd=st.text_input("Password",type="password")
+
+        if st.button("Register"):
+            if save_user(name,email,pwd):
+                send_registration_mail(email,name)
+                st.success("Registered + Email Sent")
+            else: st.error("User exists")
+
 else:
-    st.write(f"Welcome {st.session_state.user}")
-    if st.button("Logout"): st.session_state.auth=False;st.rerun()
+    st.success(f"Welcome {st.session_state.user}")
+    if st.button("Logout"):
+        st.session_state.auth=False
+        st.rerun()
 
     import dashboard
     dashboard.main()
