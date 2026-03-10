@@ -52,35 +52,75 @@ def main():
         st.plotly_chart(fig2,use_container_width=True)
 
     # =================================================
-    # MIX CALCULATOR
-    # =================================================
-    if page=="⚙ Investment Mix Calculator":
+# MIX CALCULATOR
+# =================================================
 
-        st.header("⚙ Rule-Based Investment Mix")
+if page=="⚙ Investment Mix Calculator":
 
-        risk=st.selectbox("Risk Level",["Low","Medium","High"])
+    st.header("⚙ Rule-Based Investment Mix")
 
-        returns=df.groupby("Crypto").apply(
-            lambda x:(x["Close"].iloc[-1]-x["Close"].iloc[0])/x["Close"].iloc[0]
-        ).reset_index(name="Return")
+    # USER INPUT
+    investment=st.number_input(
+        "💰 Amount to Invest ($)",
+        min_value=100,
+        value=1000,
+        step=100
+    )
 
-        vol=df.groupby("Crypto")["Close"].std().reset_index(name="Vol")
+    risk=st.selectbox(
+        "⚡ Risk Level",
+        ["Low","Medium","High"]
+    )
 
-        m=returns.merge(vol,on="Crypto")
+    # RETURNS
+    returns=df.sort_values("Date").groupby("Crypto").agg(
+        Start=("Close","first"),
+        End=("Close","last")
+    ).reset_index()
 
-        m["Return_n"]=m["Return"]/m["Return"].max()
-        m["Vol_n"]=m["Vol"]/m["Vol"].max()
+    returns["Return"]=(returns["End"]-returns["Start"])/returns["Start"]
 
-        if risk=="Low":
-            m["Score"]=.7*(1-m["Vol_n"])+.3*m["Return_n"]
-        elif risk=="Medium":
-            m["Score"]=.5*(1-m["Vol_n"])+.5*m["Return_n"]
-        else:
-            m["Score"]=.3*(1-m["Vol_n"])+.7*m["Return_n"]
+    # VOLATILITY
+    vol=df.groupby("Crypto")["Close"].std().reset_index(name="Vol")
 
-        m["Allocation %"]=m["Score"]/m["Score"].sum()*100
+    # MERGE
+    m=returns.merge(vol,on="Crypto")
 
-        st.dataframe(m[["Crypto","Allocation %"]],use_container_width=True)
+    # NORMALIZE
+    m["Return_n"]=m["Return"]/m["Return"].max()
+    m["Vol_n"]=m["Vol"]/m["Vol"].max()
 
-        fig3=px.pie(m,names="Crypto",values="Allocation %",hole=.4)
-        st.plotly_chart(fig3,use_container_width=True)
+    # RISK MODEL
+    if risk=="Low":
+        m["Score"]=.7*(1-m["Vol_n"])+.3*m["Return_n"]
+    elif risk=="Medium":
+        m["Score"]=.5*(1-m["Vol_n"])+.5*m["Return_n"]
+    else:
+        m["Score"]=.3*(1-m["Vol_n"])+.7*m["Return_n"]
+
+    # ALLOCATION
+    m["Allocation %"]=m["Score"]/m["Score"].sum()*100
+
+    # INVESTMENT AMOUNT
+    m["Investment Amount ($)"]=investment*(m["Allocation %"]/100)
+
+    m["Allocation %"]=m["Allocation %"].round(2)
+    m["Investment Amount ($)"]=m["Investment Amount ($)"].round(2)
+
+    st.subheader("📊 Investment Breakdown")
+
+    st.dataframe(
+        m[["Crypto","Allocation %","Investment Amount ($)"]],
+        use_container_width=True
+    )
+
+    # PIE CHART
+    fig3=px.pie(
+        m,
+        names="Crypto",
+        values="Investment Amount ($)",
+        hole=.4,
+        title="Portfolio Allocation"
+    )
+
+    st.plotly_chart(fig3,use_container_width=True)
