@@ -2,21 +2,26 @@ import smtplib
 from email.mime.text import MIMEText
 
 SENDER="managercryptoportfolio@gmail.com"
-APP_PASSWORD="Manager@26"
+APP_PASS="PUT_APP_PASSWORD"
+
+def send_registration_mail(user,name):
+
+    msg=MIMEText(f"Hello {name}, Registration Successful.")
+    msg["Subject"]="Registration Success"
+    msg["From"]=SENDER
+    msg["To"]=user
+
+    with smtplib.SMTP_SSL("smtp.gmail.com",465) as s:
+        s.login(SENDER,APP_PASS)
+        s.send_message(msg)
 
 def send_alert(df):
 
-    body=f"""
-High Risk Alert!
-
-{df.to_string()}
-"""
-
-    msg=MIMEText(body)
+    msg=MIMEText(f"High Risk Alert:\n{df}")
     msg["Subject"]="Crypto Risk Alert"
     msg["From"]=SENDER
     msg["To"]=SENDER
 
-    with smtplib.SMTP_SSL("smtp.gmail.com",465) as server:
-        server.login(SENDER,APP_PASSWORD)
-        server.send_message(msg)
+    with smtplib.SMTP_SSL("smtp.gmail.com",465) as s:
+        s.login(SENDER,APP_PASS)
+        s.send_message(msg)
