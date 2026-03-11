@@ -1,5 +1,5 @@
 # =====================================================
-# CRYPTO PORTFOLIO MANAGER - FINAL DASHBOARD
+# CRYPTO PORTFOLIO MANAGER - FINAL DASHBOARD (FULL)
 # =====================================================
 
 import streamlit as st
@@ -32,9 +32,8 @@ def main():
     "👤 User Profile"
     ])
 
-
     # =================================================
-    # USER PROFILE (UPDATED STRUCTURE)
+    # USER PROFILE (FINAL UPDATED)
     # =================================================
     if page=="👤 User Profile":
 
@@ -56,7 +55,7 @@ def main():
         hold=all_hold[user]
 
         # =================================================
-        # TOP: INVESTMENT DETAILS + EDA
+        # TOP — INVESTMENT DETAILS + EDA
         # =================================================
         st.subheader("📊 Investment Overview")
 
@@ -68,7 +67,21 @@ def main():
             total_invested=0
             total_current=0
 
-            for h in hold:
+            # -------- FIX OLD + NEW FORMAT --------
+            fixed_hold=[]
+
+            if isinstance(hold,dict):
+                for c,a in hold.items():
+                    fixed_hold.append({
+                        "crypto":c,
+                        "amount":a,
+                        "date":str(df["Date"].min().date())
+                    })
+            else:
+                fixed_hold=hold
+
+            # -------- CALCULATIONS --------
+            for h in fixed_hold:
 
                 coin=h["crypto"]
                 invest_amt=h["amount"]
@@ -121,7 +134,7 @@ def main():
             fig=px.pie(table,names="Crypto",values="Current Value ($)",hole=0.4)
             st.plotly_chart(fig,use_container_width=True)
 
-            # -------- EDA PART --------
+            # -------- EDA --------
             st.subheader("📈 Investment EDA")
 
             eda=table.groupby("Crypto")["Profit %"].mean().reset_index()
@@ -138,7 +151,7 @@ def main():
         st.divider()
 
         # =================================================
-        # BOTTOM: ADD INVESTMENT FORM
+        # BOTTOM — ADD INVESTMENT FORM
         # =================================================
         st.subheader("➕ Add Investment")
 
@@ -173,7 +186,7 @@ def main():
 
 
     # =================================================
-    # OTHER PAGES SAME
+    # DASHBOARD PAGE
     # =================================================
     if page=="📊 Dashboard":
 
@@ -194,6 +207,9 @@ def main():
                         use_container_width=True)
 
 
+    # =================================================
+    # MIX CALCULATOR
+    # =================================================
     if page=="⚙ Investment Mix Calculator":
 
         st.header("Investment Mix Calculator")
@@ -223,6 +239,9 @@ def main():
         st.download_button("Download CSV",m.to_csv(index=False),"investment_mix.csv")
 
 
+    # =================================================
+    # RISK CHECKER
+    # =================================================
     if page=="⚠ Risk Checker":
 
         st.header("Risk Checker + Predictor")
