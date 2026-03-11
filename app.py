@@ -16,7 +16,13 @@ def load_users():
         return {}
 
 # ---------------- SAVE USER ----------------
-def save_user(name,u,p):
+if save_user(name,u,p):
+
+    send_registration_mail(u)   # 🔥 ADD THIS
+
+    st.success("Registration Successful")
+    st.session_state.mode="login"
+    st.rerun()
     users=load_users()
     if u in users:
         return False
@@ -107,5 +113,6 @@ else:
 
     import dashboard
     dashboard.main()
+
 
 
