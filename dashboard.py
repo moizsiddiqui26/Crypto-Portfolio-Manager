@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import json,os
 from risk_predictor import run_risk_checks
 from email_alert import send_alert
 
@@ -15,99 +16,37 @@ def main():
     df=load_data()
 
     page=st.sidebar.radio("Navigation",[
-    "User Profile","Investment Mix Calculator","Risk Checker"])
+    "📊 Dashboard",
+    "⚙ Investment Mix Calculator",
+    "⚠ Risk Checker",
+    "👤 User Profile"
+    ])
 
-    # =================================================
-# USER PROFILE PAGE
-# =================================================
-if page=="👤 User Profile":
+    # ================= DASHBOARD =================
+    if page=="📊 Dashboard":
 
-    import json,os
+        st.header("Portfolio Dashboard")
 
-    st.header("👤 User Profile")
+        cryptos=sorted(df["Crypto"].unique())
+        sel=st.multiselect("Select Crypto",cryptos,default=cryptos)
 
-    user=st.session_state.get("user","Guest")
+        f=df[df["Crypto"].isin(sel)]
+        latest=f.sort_values("Date").groupby("Crypto").tail(1)
 
-    st.subheader(f"Welcome, {user}")
+        col1,col2,col3=st.columns(3)
+        col1.metric("Assets",len(latest))
+        col2.metric("Avg Price",f"${latest.Close.mean():,.2f}")
+        col3.metric("Volume",f"{latest.Volume.sum():,.0f}")
 
-    HOLDINGS_FILE="holdings.json"
+        st.plotly_chart(px.line(f,x="Date",y="Close",color="Crypto"),use_container_width=True)
 
-    # ---------- LOAD HOLDINGS ----------
-    if os.path.exists(HOLDINGS_FILE):
-        with open(HOLDINGS_FILE,"r") as f:
-            all_holdings=json.load(f)
-    else:
-        all_holdings={}
 
-    if user not in all_holdings:
-        all_holdings[user]={}
+    # ================= MIX CALCULATOR =================
+    if page=="⚙ Investment Mix Calculator":
 
-    holdings=all_holdings[user]
+        st.header("Investment Mix Calculator")
 
-    # ---------- ADD HOLDINGS ----------
-    st.subheader("➕ Add Holdings")
-
-    cryptos=sorted(df["Crypto"].unique())
-
-    col1,col2=st.columns(2)
-
-    with col1:
-        coin=st.selectbox("Crypto",cryptos)
-
-    with col2:
-        amount=st.number_input("Amount Held",min_value=0.0,value=0.0)
-
-    if st.button("Add / Update Holding"):
-
-        holdings[coin]=amount
-        all_holdings[user]=holdings
-
-        with open(HOLDINGS_FILE,"w") as f:
-            json.dump(all_holdings,f)
-
-        st.success("Holding Updated")
-
-    st.divider()
-
-    # ---------- SHOW HOLDINGS ----------
-    st.subheader("📊 Your Portfolio")
-
-    if holdings:
-
-        latest=df.sort_values("Date").groupby("Crypto").tail(1)
-
-        rows=[]
-        total_value=0
-
-        for coin,amt in holdings.items():
-
-            price=float(latest[latest["Crypto"]==coin]["Close"])
-
-            value=amt*price
-            total_value+=value
-
-            rows.append([coin,amt,price,value])
-
-        table=pd.DataFrame(rows,columns=["Crypto","Amount","Price","Value ($)"])
-
-        st.metric("💰 Total Portfolio Value",f"${total_value:,.2f}")
-
-        st.dataframe(table,use_container_width=True)
-
-        # ---------- PIE CHART ----------
-        fig=px.pie(table,names="Crypto",values="Value ($)",hole=0.4,
-                   title="Portfolio Allocation")
-
-        st.plotly_chart(fig,use_container_width=True)
-
-    else:
-        st.info("No holdings added yet")
-    # ---------------- MIX CALCULATOR ----------------
-    if page=="Investment Mix Calculator":
-
-        st.header("⚙ Investment Mix Calculator")
-
-        amount=st.number_input("Amount",value=1000.0)
+        amount=st.number_input("Amount to Invest",value=1000.0)
         risk=st.selectbox("Risk Level",["Low","Medium","High"])
 
         returns=df.groupby("Crypto").apply(lambda x:(x.Close.iloc[-1]-x.Close.iloc[0])/x.Close.iloc[0]).reset_index(name="Return")
@@ -128,19 +67,76 @@ if page=="👤 User Profile":
 
         st.plotly_chart(px.pie(m,names="Crypto",values="Investment"),use_container_width=True)
 
-        csv=m.to_csv(index=False)
-        st.download_button("Download CSV",csv,"investment.csv")
+        st.download_button("Download CSV",m.to_csv(index=False),"investment_mix.csv")
 
-    # ---------------- RISK CHECKER ----------------
-    if page=="Risk Checker":
 
-        st.header("⚠ Risk Checker + Predictor")
+    # ================= RISK CHECKER =================
+    if page=="⚠ Risk Checker":
+
+        st.header("Risk Checker + Predictor")
 
         if st.button("Run Risk Check"):
             result=run_risk_checks(df)
-
             st.dataframe(result)
 
             if (result["Risk"]=="High").any():
                 send_alert(result)
-                st.warning("Alert sent!")
+                st.warning("High risk detected. Email sent.")
+
+
+    # ================= USER PROFILE =================
+    if page=="👤 User Profile":
+
+        st.header("User Profile")
+
+        user=st.session_state.user
+        HOLDINGS_FILE="holdings.json"
+
+        if os.path.exists(HOLDINGS_FILE):
+            with open(HOLDINGS_FILE,"r") as f: all_hold=json.load(f)
+        else: all_hold={}
+
+        if user not in all_hold: all_hold[user]={}
+        hold=all_hold[user]
+
+        st.subheader("➕ Add Investment")
+
+        cryptos=sorted(df["Crypto"].unique())
+        coin=st.selectbox("Crypto Currency",cryptos)
+        invest=st.number_input("Amount Invested ($)",min_value=0.0)
+
+        if st.button("Save Investment"):
+            hold[coin]=hold.get(coin,0)+invest
+            all_hold[user]=hold
+
+            with open(HOLDINGS_FILE,"w") as f: json.dump(all_hold,f)
+
+            st.success("Investment Saved")
+
+        st.divider()
+
+        st.subheader("📊 Your Holdings")
+
+        if hold:
+
+            latest=df.sort_values("Date").groupby("Crypto").tail(1)
+
+            rows=[]
+            total=0
+
+            for c,a in hold.items():
+                price=float(latest[latest.Crypto==c]["Close"])
+                val=a/price if price>0 else 0
+                total+=a
+                rows.append([c,a,price,val])
+
+            table=pd.DataFrame(rows,columns=["Crypto","Amount Invested","Price","Units"])
+
+            st.metric("Total Invested",f"${total:,.2f}")
+            st.dataframe(table,use_container_width=True)
+
+            st.plotly_chart(px.pie(table,names="Crypto",values="Amount Invested"),
+                            use_container_width=True)
+
+        else:
+            st.info("No investments yet")
