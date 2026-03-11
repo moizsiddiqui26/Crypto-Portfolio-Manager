@@ -38,11 +38,7 @@ def main():
         f=df[df["Crypto"].isin(sel)]
         latest=f.sort_values("Date").groupby("Crypto").tail(1)
 
-        col1,col2,col3=st.columns(3)
-        col1.metric("Assets",len(latest))
-        col2.metric("Avg Price",f"${latest.Close.mean():,.2f}")
-        col3.metric("Volume",f"{latest.Volume.sum():,.0f}")
-
+        
         st.divider()
 
         st.subheader("📈 Price Trend")
@@ -83,7 +79,7 @@ def main():
 
 
 # MIX CALCULATOR
-# 
+
     if page=="⚙ Investment Mix Calculator":
 
         st.header("Investment Mix Calculator")
