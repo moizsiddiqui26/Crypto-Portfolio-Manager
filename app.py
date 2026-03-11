@@ -1,17 +1,11 @@
-# =====================================================
-# CRYPTO PORTFOLIO MANAGER - FINAL APP
-# =====================================================
-
 import streamlit as st
 import json,os
 from email_alert import send_registration_mail
 
-# ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="Crypto Portfolio Manager",layout="wide")
 
 USER_DB="users.json"
 
-# ---------------- LOAD USERS ----------------
 def load_users():
     if not os.path.exists(USER_DB):
         return {}
@@ -44,9 +38,6 @@ if "mode" not in st.session_state:
     st.session_state.mode="login"
 
 
-# =====================================================
-# AUTH UI
-# =====================================================
 def auth_ui():
 
     st.title("🚀 Crypto Portfolio Manager")
@@ -96,9 +87,6 @@ def auth_ui():
             st.rerun()
 
 
-# =====================================================
-# MAIN FLOW
-# =====================================================
 if not st.session_state.auth:
 
     auth_ui()
@@ -119,4 +107,5 @@ else:
 
     import dashboard
     dashboard.main()
+
 
