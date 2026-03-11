@@ -1,11 +1,19 @@
+# =====================================================
+# CRYPTO PORTFOLIO MANAGER - FINAL APP (FULL)
+# =====================================================
+
 import streamlit as st
 import json,os
 from email_alert import send_registration_mail
 
+# ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="Crypto Portfolio Manager",layout="wide")
 
 USER_DB="users.json"
 
+# =====================================================
+# LOAD USERS
+# =====================================================
 def load_users():
     if not os.path.exists(USER_DB):
         return {}
@@ -15,28 +23,22 @@ def load_users():
     except:
         return {}
 
-# ---------------- SAVE USER ----------------
-if save_user(name,u,p):
-
-    send_registration_mail(u)   # 🔥 ADD THIS
-
-    st.success("Registration Successful")
-    st.session_state.mode="login"
-    st.rerun()
+# =====================================================
+# SAVE USER
+# =====================================================
+def save_user(name,u,p):
     users=load_users()
     if u in users:
         return False
     users[u]={"name":name,"password":p}
     with open(USER_DB,"w") as f:
         json.dump(users,f)
-
-    # send mail
-    send_registration_mail(u)
-
     return True
 
 
-# ---------------- SESSION STATE ----------------
+# =====================================================
+# SESSION STATE
+# =====================================================
 if "auth" not in st.session_state:
     st.session_state.auth=False
 
@@ -44,15 +46,19 @@ if "mode" not in st.session_state:
     st.session_state.mode="login"
 
 
+# =====================================================
+# AUTH UI
+# =====================================================
 def auth_ui():
 
     st.title("🚀 Crypto Portfolio Manager")
 
-    # LOGIN
+# ---------------- LOGIN ----------------
     if st.session_state.mode=="login":
 
-        with st.form("login"):
-            u=st.text_input("Username")
+        with st.form("login_form"):
+
+            u=st.text_input("Email / Username")
             p=st.text_input("Password",type="password")
 
             if st.form_submit_button("Login"):
@@ -60,39 +66,50 @@ def auth_ui():
                 users=load_users()
 
                 if u in users and users[u]["password"]==p:
+
                     st.session_state.auth=True
                     st.session_state.user=u
-                    st.session_state.email=u
+                    st.session_state.email=u   # ✅ IMPORTANT
+
                     st.rerun()
+
                 else:
-                    st.error("Invalid Username or Password")
+                    st.error("Invalid Email or Password")
 
         if st.button("Register"):
             st.session_state.mode="register"
             st.rerun()
 
-    # REGISTER
+# ---------------- REGISTER ----------------
     else:
 
-        with st.form("register"):
+        with st.form("register_form"):
+
             name=st.text_input("Full Name")
-            u=st.text_input("Username")
+            u=st.text_input("Email (used for alerts)")
             p=st.text_input("Password",type="password")
 
             if st.form_submit_button("Register"):
 
                 if save_user(name,u,p):
-                    st.success("Registration Successful")
+
+                    send_registration_mail(u)   # ✅ SEND MAIL
+
+                    st.success("Registration Successful ✅")
                     st.session_state.mode="login"
                     st.rerun()
+
                 else:
-                    st.error("Username already exists")
+                    st.error("User already exists")
 
         if st.button("Back to Login"):
             st.session_state.mode="login"
             st.rerun()
 
 
+# =====================================================
+# MAIN FLOW
+# =====================================================
 if not st.session_state.auth:
 
     auth_ui()
@@ -113,6 +130,3 @@ else:
 
     import dashboard
     dashboard.main()
-
-
-
