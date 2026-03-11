@@ -65,6 +65,7 @@ def auth_ui():
                 if u in users and users[u]["password"]==p:
                     st.session_state.auth=True
                     st.session_state.user=u
+                    st.session_state.email=u
                     st.rerun()
                 else:
                     st.error("Invalid Username or Password")
@@ -118,3 +119,4 @@ else:
 
     import dashboard
     dashboard.main()
+
