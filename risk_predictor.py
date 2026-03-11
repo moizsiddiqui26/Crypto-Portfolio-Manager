@@ -1,37 +1,20 @@
-# =====================================================
-# RISK CHECKER (PARALLEL)
-# =====================================================
-
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor
 
+def calc_risk(data):
+    vol=data["Close"].std()
+    if vol>2000: return "High"
+    elif vol>1000: return "Medium"
+    return "Low"
 
-# ---------------- SINGLE RISK CHECK ----------------
-def calc_risk(row):
+def run_risk_checks(df):
+    groups=[g for _,g in df.groupby("Crypto")]
 
-    # simple rule-based risk logic
-    if row["Price"] > 30000:
-        return "High"
-
-    elif row["Price"] > 10000:
-        return "Medium"
-
-    else:
-        return "Low"
-
-
-# ---------------- PARALLEL RISK CHECK ----------------
-def run_risk(df):
-
-    # convert rows to list
-    rows=[row for _,row in df.iterrows()]
-
-    with ThreadPoolExecutor() as executor:
-        risks=list(executor.map(calc_risk,rows))
+    with ThreadPoolExecutor() as ex:
+        risks=list(ex.map(calc_risk,groups))
 
     result=pd.DataFrame({
-        "Crypto":df["Crypto"],
-        "Price":df["Price"],
+        "Crypto":df["Crypto"].unique(),
         "Risk":risks
     })
 
