@@ -1,35 +1,62 @@
 # =====================================================
-# FINAL DASHBOARD (ADVANCED EDA + MIX LEVEL + PROFILE)
+# FINAL DASHBOARD (FULL WORKING VERSION)
 # =====================================================
 
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-import numpy as np,json,os,requests
+import numpy as np, json, os, requests, time
 from sklearn.linear_model import LinearRegression
 from risk_predictor import run_risk_checks
 from email_alert import send_alert
 
 
-# ---------------- LIVE DATA ----------------
+# =====================================================
+# LIVE DATA (FIXED VERSION)
+# =====================================================
 @st.cache_data(ttl=300)
 def load_data():
 
-    coins={"BTC":"bitcoin","ETH":"ethereum","BNB":"binancecoin","SOL":"solana","ADA":"cardano"}
+    coins={
+        "BTC":"bitcoin",
+        "ETH":"ethereum",
+        "BNB":"binancecoin",
+        "SOL":"solana",
+        "ADA":"cardano"
+    }
 
     all_df=[]
 
     for c,id in coins.items():
 
-        url=f"https://api.coingecko.com/api/v3/coins/{id}/market_chart"
-        data=requests.get(url,params={"vs_currency":"usd","days":120}).json()
+        try:
+            url=f"https://api.coingecko.com/api/v3/coins/{id}/market_chart"
+            r=requests.get(url,params={"vs_currency":"usd","days":120})
 
-        temp=pd.DataFrame(data["prices"],columns=["timestamp","Close"])
-        temp["Date"]=pd.to_datetime(temp["timestamp"],unit="ms")
-        temp["Crypto"]=c
+            if r.status_code!=200:
+                continue
 
-        all_df.append(temp[["Date","Crypto","Close"]])
+            data=r.json()
+
+            if "prices" not in data:
+                continue
+
+            temp=pd.DataFrame(data["prices"],columns=["timestamp","Close"])
+
+            temp["Date"]=pd.to_datetime(temp["timestamp"],unit="ms")
+            temp["Crypto"]=c
+
+            all_df.append(temp[["Date","Crypto","Close"]])
+
+            time.sleep(1)
+
+        except:
+            continue
+
+    if len(all_df)==0:
+        st.error("Live data failed. Refresh again.")
+        return pd.DataFrame(columns=["Date","Crypto","Close"])
 
     return pd.concat(all_df)
 
@@ -68,7 +95,7 @@ def main():
         st.plotly_chart(px.line(f,x="Date",y="Return",color="Crypto"),
                         use_container_width=True)
 
-        # VOLATILITY ROLLING
+        # ROLLING VOLATILITY
         st.subheader("📊 Rolling Volatility")
 
         f["Volatility"]=f.groupby("Crypto")["Return"].transform(lambda x:x.rolling(7).std())
@@ -76,13 +103,12 @@ def main():
         st.plotly_chart(px.line(f,x="Date",y="Volatility",color="Crypto"),
                         use_container_width=True)
 
-        # DISTRIBUTION HISTOGRAM
+        # HISTOGRAM
         st.subheader("📦 Return Distribution")
-
         st.plotly_chart(px.histogram(f,x="Return",color="Crypto",nbins=50),
                         use_container_width=True)
 
-        # CORRELATION HEATMAP
+        # CORRELATION
         st.subheader("🔥 Correlation Heatmap")
 
         pivot=f.pivot(index="Date",columns="Crypto",values="Close")
@@ -93,7 +119,7 @@ def main():
 
 
 # =====================================================
-# ⚙ MIX CALCULATOR (LEVEL ADDED)
+# ⚙ MIX CALCULATOR
 # =====================================================
     if page=="⚙ Investment Mix Calculator":
 
@@ -101,7 +127,7 @@ def main():
 
         amount=st.number_input("Amount to Invest ($)",value=1000.0)
 
-        level=st.selectbox("Select Investment Level",
+        level=st.selectbox("Investment Level",
         ["Low Risk","Medium Risk","High Risk"])
 
         returns=df.groupby("Crypto").apply(lambda x:(x.Close.iloc[-1]-x.Close.iloc[0])/x.Close.iloc[0]).reset_index(name="Return")
@@ -110,7 +136,7 @@ def main():
         m=returns.merge(vol,on="Crypto")
 
         if level=="Low Risk":
-            m["Score"]=(1/m["Vol"])
+            m["Score"]=1/m["Vol"]
         elif level=="Medium Risk":
             m["Score"]=m["Return"]/m["Vol"]
         else:
@@ -128,14 +154,13 @@ def main():
 
 
 # =====================================================
-# ⚠ RISK CHECKER + PREDICTOR
+# ⚠ RISK CHECKER + PREDICTION
 # =====================================================
     if page=="⚠ Risk Checker":
 
         if st.button("Run Risk Check"):
             result=run_risk_checks(df)
             st.dataframe(result)
-
             send_alert(result,st.session_state.email)
 
         st.subheader("🔮 Prediction")
@@ -161,7 +186,7 @@ def main():
 
 
 # =====================================================
-# 👤 USER PROFILE (FINAL)
+# 👤 USER PROFILE
 # =====================================================
     if page=="👤 User Profile":
 
