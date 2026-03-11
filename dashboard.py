@@ -85,58 +85,126 @@ def main():
 
 
     # ================= USER PROFILE =================
-    if page=="👤 User Profile":
+if page=="👤 User Profile":
 
-        st.header("User Profile")
+    st.header("👤 User Profile")
 
-        user=st.session_state.user
-        HOLDINGS_FILE="holdings.json"
+    user=st.session_state.user
+    HOLDINGS_FILE="holdings.json"
 
-        if os.path.exists(HOLDINGS_FILE):
-            with open(HOLDINGS_FILE,"r") as f: all_hold=json.load(f)
-        else: all_hold={}
+    if os.path.exists(HOLDINGS_FILE):
+        with open(HOLDINGS_FILE,"r") as f:
+            all_hold=json.load(f)
+    else:
+        all_hold={}
 
-        if user not in all_hold: all_hold[user]={}
-        hold=all_hold[user]
+    if user not in all_hold:
+        all_hold[user]=[]
 
-        st.subheader("➕ Add Investment")
+    hold=all_hold[user]
 
-        cryptos=sorted(df["Crypto"].unique())
+    # ================= ADD INVESTMENT =================
+    st.subheader("➕ Add Investment")
+
+    cryptos=sorted(df["Crypto"].unique())
+
+    col1,col2,col3=st.columns(3)
+
+    with col1:
         coin=st.selectbox("Crypto Currency",cryptos)
-        invest=st.number_input("Amount Invested ($)",min_value=0.0)
 
-        if st.button("Save Investment"):
-            hold[coin]=hold.get(coin,0)+invest
-            all_hold[user]=hold
+    with col2:
+        invest_amt=st.number_input("Amount Invested ($)",min_value=0.0)
 
-            with open(HOLDINGS_FILE,"w") as f: json.dump(all_hold,f)
+    with col3:
+        invest_date=st.date_input("Investment Date")
 
-            st.success("Investment Saved")
+    if st.button("Save Investment"):
 
-        st.divider()
+        hold.append({
+            "crypto":coin,
+            "amount":invest_amt,
+            "date":str(invest_date)
+        })
 
-        st.subheader("📊 Your Holdings")
+        all_hold[user]=hold
 
-        if hold:
+        with open(HOLDINGS_FILE,"w") as f:
+            json.dump(all_hold,f)
 
-            latest=df.sort_values("Date").groupby("Crypto").tail(1)
+        st.success("Investment Saved")
 
-            rows=[]
-            total=0
+    st.divider()
 
-            for c,a in hold.items():
-                price=float(latest[latest.Crypto==c]["Close"])
-                val=a/price if price>0 else 0
-                total+=a
-                rows.append([c,a,price,val])
+    # ================= SHOW HOLDINGS =================
+    st.subheader("📊 Your Investments")
 
-            table=pd.DataFrame(rows,columns=["Crypto","Amount Invested","Price","Units"])
+    if hold:
 
-            st.metric("Total Invested",f"${total:,.2f}")
-            st.dataframe(table,use_container_width=True)
+        latest=df.sort_values("Date").groupby("Crypto").tail(1)
 
-            st.plotly_chart(px.pie(table,names="Crypto",values="Amount Invested"),
-                            use_container_width=True)
+        rows=[]
+        total_invested=0
+        total_current=0
 
-        else:
-            st.info("No investments yet")
+        for h in hold:
+
+            coin=h["crypto"]
+            invest_amt=h["amount"]
+            invest_date=pd.to_datetime(h["date"])
+
+            # price on invest date
+            past=df[(df["Crypto"]==coin)&(df["Date"]<=invest_date)].tail(1)
+
+            if not past.empty:
+                past_price=float(past["Close"])
+            else:
+                past_price=0
+
+            # current price
+            current_price=float(latest[latest["Crypto"]==coin]["Close"])
+
+            # units bought
+            units=invest_amt/past_price if past_price>0 else 0
+
+            current_value=units*current_price
+            profit=((current_value-invest_amt)/invest_amt*100) if invest_amt>0 else 0
+
+            total_invested+=invest_amt
+            total_current+=current_value
+
+            rows.append([
+                coin,
+                invest_date.date(),
+                invest_amt,
+                past_price,
+                current_price,
+                units,
+                current_value,
+                profit
+            ])
+
+        table=pd.DataFrame(rows,columns=[
+            "Crypto","Invest Date","Invested ($)",
+            "Buy Price","Current Price","Units",
+            "Current Value ($)","Profit %"
+        ])
+
+        col1,col2,col3=st.columns(3)
+
+        col1.metric("💰 Total Invested",f"${total_invested:,.2f}")
+        col2.metric("📈 Current Value",f"${total_current:,.2f}")
+        col3.metric("🚀 Profit %",
+                    f"{((total_current-total_invested)/total_invested*100):.2f}%")
+
+        st.dataframe(table,use_container_width=True)
+
+        # ================= PIE CHART =================
+        st.subheader("Portfolio Allocation")
+
+        fig=px.pie(table,names="Crypto",values="Current Value ($)",hole=0.4)
+
+        st.plotly_chart(fig,use_container_width=True)
+
+    else:
+        st.info("No investments added yet")
