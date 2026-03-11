@@ -1,26 +1,27 @@
 # =====================================================
-# EMAIL ALERT SYSTEM (100% CLEAN VERSION)
+# EMAIL ALERT SYSTEM (FINAL FIXED VERSION)
 # =====================================================
 
 import smtplib
 from email.mime.text import MIMEText
 
-# 👉 CHANGE THIS ONLY
 SENDER = "managercryptoportfolio@gmail.com"
-APP_PASSWORD = "ajlu qjxx absa heei"
+APP_PASSWORD = "PUT_APP_PASSWORD_HERE"   # 👉 add Gmail App Password
 
 
 # ---------------- REGISTRATION MAIL ----------------
-def send_registration_mail(username):
+def send_registration_mail(name, user_email):
 
     try:
 
         body = f"""
-Hello {username},
+Hello {name},
 
 Welcome to Crypto Portfolio Manager 🚀
 
 Your registration was successful.
+
+You can now log in and start managing your investments.
 
 Regards,
 Crypto Portfolio Manager
@@ -29,7 +30,7 @@ Crypto Portfolio Manager
         msg = MIMEText(body)
         msg["Subject"] = "Registration Successful"
         msg["From"] = SENDER
-        msg["To"] = SENDER
+        msg["To"] = user_email
 
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(SENDER, APP_PASSWORD)
@@ -37,27 +38,3 @@ Crypto Portfolio Manager
 
     except Exception as e:
         print("Registration mail failed:", e)
-
-
-# ---------------- RISK ALERT ----------------
-def send_alert(df):
-
-    try:
-
-        body = f"""
-⚠ HIGH RISK ALERT
-
-{df.to_string()}
-"""
-
-        msg = MIMEText(body)
-        msg["Subject"] = "Crypto Risk Alert"
-        msg["From"] = SENDER
-        msg["To"] = SENDER
-
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login(SENDER, APP_PASSWORD)
-            server.send_message(msg)
-
-    except Exception as e:
-        print("Risk mail failed:", e)
