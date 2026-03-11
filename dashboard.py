@@ -5,7 +5,10 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
+import numpy as np
 import json,os
+from sklearn.linear_model import LinearRegression
 from risk_predictor import run_risk_checks
 from email_alert import send_alert
 
@@ -32,24 +35,21 @@ def main():
     "👤 User Profile"
     ])
 
-
 # =================================================
-# DASHBOARD PAGE (FULL EDA)
+# DASHBOARD PAGE (FULL EDA + PREDICTION)
 # =================================================
     if page=="📊 Dashboard":
 
-        st.header("📊 Portfolio Dashboard + EDA")
+        st.header("📊 Portfolio Dashboard + EDA + Prediction")
 
         cryptos=sorted(df["Crypto"].unique())
         sel=st.multiselect("Select Crypto",cryptos,default=cryptos)
 
         f=df[df["Crypto"].isin(sel)]
-
         latest=f.sort_values("Date").groupby("Crypto").tail(1)
 
         # METRICS
         col1,col2,col3=st.columns(3)
-
         col1.metric("Assets",len(latest))
         col2.metric("Avg Price",f"${latest.Close.mean():,.2f}")
         col3.metric("Volume",f"{latest.Volume.sum():,.0f}")
@@ -58,63 +58,82 @@ def main():
 
         # PRICE TREND
         st.subheader("📈 Price Trend")
-        fig1=px.line(f,x="Date",y="Close",color="Crypto")
-        st.plotly_chart(fig1,use_container_width=True)
+        st.plotly_chart(px.line(f,x="Date",y="Close",color="Crypto"),
+                        use_container_width=True)
 
         # VOLATILITY
         st.subheader("📊 Volatility Analysis")
-
         volatility=f.groupby("Crypto")["Close"].std().reset_index()
-        volatility.columns=["Crypto","Volatility"]
-
-        fig2=px.bar(volatility,x="Crypto",y="Volatility",
-                    title="Crypto Volatility (Std Dev)",
-                    color="Crypto")
-
-        st.plotly_chart(fig2,use_container_width=True)
+        st.plotly_chart(px.bar(volatility,x="Crypto",y="Close",
+                        title="Volatility (Std Dev)",color="Crypto"),
+                        use_container_width=True)
 
         # RETURNS
         st.subheader("📉 Return % Analysis")
-
         returns=f.groupby("Crypto").apply(
             lambda x:(x.Close.iloc[-1]-x.Close.iloc[0])/x.Close.iloc[0]*100
         ).reset_index(name="Return %")
 
-        fig3=px.bar(returns,x="Crypto",y="Return %",
-                    title="Past Return %",
-                    color="Crypto")
-
-        st.plotly_chart(fig3,use_container_width=True)
+        st.plotly_chart(px.bar(returns,x="Crypto",y="Return %",
+                        color="Crypto"),
+                        use_container_width=True)
 
         # MOVING AVERAGE
         st.subheader("📈 Moving Average Trend")
-
         f["MA20"]=f.groupby("Crypto")["Close"].transform(lambda x:x.rolling(20).mean())
 
-        fig4=px.line(f,x="Date",y="MA20",color="Crypto",
-                     title="20-Day Moving Average")
-
-        st.plotly_chart(fig4,use_container_width=True)
+        st.plotly_chart(px.line(f,x="Date",y="MA20",color="Crypto"),
+                        use_container_width=True)
 
         # BOXPLOT
         st.subheader("📦 Price Distribution")
+        st.plotly_chart(px.box(f,x="Crypto",y="Close",color="Crypto"),
+                        use_container_width=True)
 
-        fig5=px.box(f,x="Crypto",y="Close",color="Crypto",
-                    title="Price Distribution")
-
-        st.plotly_chart(fig5,use_container_width=True)
-
-        # CORRELATION HEATMAP
+        # CORRELATION
         st.subheader("🔥 Correlation Heatmap")
-
         pivot=f.pivot(index="Date",columns="Crypto",values="Close")
+        st.plotly_chart(px.imshow(pivot.corr(),text_auto=True),
+                        use_container_width=True)
 
-        corr=pivot.corr()
+# =================================================
+# 🔮 PRICE PREDICTION (NEW)
+# =================================================
+        st.subheader("🔮 Price Prediction (Next 7 Days)")
 
-        fig6=px.imshow(corr,text_auto=True,
-                       title="Crypto Correlation Matrix")
+        pred_coin=st.selectbox("Select Crypto for Prediction",cryptos)
 
-        st.plotly_chart(fig6,use_container_width=True)
+        coin_df=df[df["Crypto"]==pred_coin].sort_values("Date")
+
+        coin_df["t"]=range(len(coin_df))
+
+        x=coin_df["t"].values.reshape(-1,1)
+        y=coin_df["Close"].values
+
+        model=LinearRegression()
+        model.fit(x,y)
+
+        future_t=np.arange(len(coin_df),len(coin_df)+7).reshape(-1,1)
+        future_pred=model.predict(future_t)
+
+        future_dates=pd.date_range(
+            coin_df["Date"].iloc[-1]+pd.Timedelta(days=1),
+            periods=7
+        )
+
+        pred_df=pd.DataFrame({
+            "Date":future_dates,
+            "Predicted Price":future_pred
+        })
+
+        fig=go.Figure()
+        fig.add_trace(go.Scatter(x=coin_df["Date"],y=coin_df["Close"],
+                                 mode="lines",name="Actual"))
+        fig.add_trace(go.Scatter(x=pred_df["Date"],y=pred_df["Predicted Price"],
+                                 mode="lines+markers",name="Predicted"))
+
+        st.plotly_chart(fig,use_container_width=True)
+        st.dataframe(pred_df,use_container_width=True)
 
 
 # =================================================
@@ -203,7 +222,6 @@ def main():
             total_invested=0
             total_current=0
 
-            # FIX OLD FORMAT
             fixed_hold=[]
 
             if isinstance(hold,dict):
@@ -235,14 +253,8 @@ def main():
                 total_current+=current_value
 
                 rows.append([
-                    coin,
-                    invest_date.date(),
-                    invest_amt,
-                    past_price,
-                    current_price,
-                    units,
-                    current_value,
-                    profit
+                    coin,invest_date.date(),invest_amt,past_price,
+                    current_price,units,current_value,profit
                 ])
 
             table=pd.DataFrame(rows,columns=[
@@ -252,10 +264,9 @@ def main():
             ])
 
             col1,col2,col3=st.columns(3)
-
-            col1.metric("💰 Total Invested",f"${total_invested:,.2f}")
-            col2.metric("📈 Current Value",f"${total_current:,.2f}")
-            col3.metric("🚀 Profit %",
+            col1.metric("Total Invested",f"${total_invested:,.2f}")
+            col2.metric("Current Value",f"${total_current:,.2f}")
+            col3.metric("Profit %",
                         f"{((total_current-total_invested)/total_invested*100):.2f}%")
 
             st.dataframe(table,use_container_width=True)
@@ -268,7 +279,6 @@ def main():
 
         st.divider()
 
-        # ADD INVESTMENT (BOTTOM)
         st.subheader("➕ Add Investment")
 
         cryptos=sorted(df["Crypto"].unique())
