@@ -186,27 +186,100 @@ def main():
 
 
     # =================================================
-    # DASHBOARD PAGE
+# DASHBOARD PAGE (FULL EDA)
+# =================================================
+if page=="📊 Dashboard":
+
+    st.header("📊 Portfolio Dashboard + EDA")
+
+    cryptos=sorted(df["Crypto"].unique())
+    sel=st.multiselect("Select Crypto",cryptos,default=cryptos)
+
+    f=df[df["Crypto"].isin(sel)]
+
+    latest=f.sort_values("Date").groupby("Crypto").tail(1)
+
+    # ================= METRICS =================
+    col1,col2,col3=st.columns(3)
+
+    col1.metric("Assets",len(latest))
+    col2.metric("Avg Price",f"${latest.Close.mean():,.2f}")
+    col3.metric("Volume",f"{latest.Volume.sum():,.0f}")
+
+    st.divider()
+
     # =================================================
-    if page=="📊 Dashboard":
+    # PRICE TREND
+    # =================================================
+    st.subheader("📈 Price Trend")
 
-        st.header("Portfolio Dashboard")
+    fig1=px.line(f,x="Date",y="Close",color="Crypto")
+    st.plotly_chart(fig1,use_container_width=True)
 
-        cryptos=sorted(df["Crypto"].unique())
-        sel=st.multiselect("Select Crypto",cryptos,default=cryptos)
+    # =================================================
+    # VOLATILITY (STD DEV)
+    # =================================================
+    st.subheader("📊 Volatility Analysis")
 
-        f=df[df["Crypto"].isin(sel)]
-        latest=f.sort_values("Date").groupby("Crypto").tail(1)
+    volatility=f.groupby("Crypto")["Close"].std().reset_index()
+    volatility.columns=["Crypto","Volatility"]
 
-        col1,col2,col3=st.columns(3)
-        col1.metric("Assets",len(latest))
-        col2.metric("Avg Price",f"${latest.Close.mean():,.2f}")
-        col3.metric("Volume",f"{latest.Volume.sum():,.0f}")
+    fig2=px.bar(volatility,x="Crypto",y="Volatility",
+                title="Crypto Volatility (Std Dev)",
+                color="Crypto")
 
-        st.plotly_chart(px.line(f,x="Date",y="Close",color="Crypto"),
-                        use_container_width=True)
+    st.plotly_chart(fig2,use_container_width=True)
 
+    # =================================================
+    # RETURNS ANALYSIS
+    # =================================================
+    st.subheader("📉 Return % Analysis")
 
+    returns=f.groupby("Crypto").apply(
+        lambda x:(x.Close.iloc[-1]-x.Close.iloc[0])/x.Close.iloc[0]*100
+    ).reset_index(name="Return %")
+
+    fig3=px.bar(returns,x="Crypto",y="Return %",
+                title="Past Return %",
+                color="Crypto")
+
+    st.plotly_chart(fig3,use_container_width=True)
+
+    # =================================================
+    # MOVING AVERAGE TREND
+    # =================================================
+    st.subheader("📈 Moving Average Trend")
+
+    f["MA20"]=f.groupby("Crypto")["Close"].transform(lambda x:x.rolling(20).mean())
+
+    fig4=px.line(f,x="Date",y="MA20",color="Crypto",
+                 title="20-Day Moving Average")
+
+    st.plotly_chart(fig4,use_container_width=True)
+
+    # =================================================
+    # DISTRIBUTION (BOXPLOT)
+    # =================================================
+    st.subheader("📦 Price Distribution")
+
+    fig5=px.box(f,x="Crypto",y="Close",color="Crypto",
+                title="Price Distribution")
+
+    st.plotly_chart(fig5,use_container_width=True)
+
+    # =================================================
+    # CORRELATION HEATMAP (BEST EDA 🔥)
+    # =================================================
+    st.subheader("🔥 Correlation Heatmap")
+
+    pivot=f.pivot(index="Date",columns="Crypto",values="Close")
+
+    corr=pivot.corr()
+
+    fig6=px.imshow(corr,text_auto=True,
+                   title="Crypto Correlation Matrix")
+
+    st.plotly_chart(fig6,use_container_width=True)
     # =================================================
     # MIX CALCULATOR
     # =================================================
