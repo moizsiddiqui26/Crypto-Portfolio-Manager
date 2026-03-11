@@ -6,7 +6,7 @@ import smtplib
 from email.mime.text import MIMEText
 
 SENDER = "managercryptoportfolio@gmail.com"
-APP_PASSWORD = "PUT_APP_PASSWORD_HERE"   # 👉 add Gmail App Password
+APP_PASSWORD = "ajlu qjxx absa heei"   # 👉 add Gmail App Password
 
 
 # ---------------- REGISTRATION MAIL ----------------
