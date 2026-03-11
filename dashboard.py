@@ -1,7 +1,3 @@
-# =====================================================
-# CRYPTO PORTFOLIO MANAGER - FINAL DASHBOARD (ULTIMATE)
-# =====================================================
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -13,17 +9,12 @@ from risk_predictor import run_risk_checks
 from email_alert import send_alert
 
 
-# ---------------- LOAD DATA ----------------
 @st.cache_data
 def load_data():
     df=pd.read_csv("preprocessed_data.csv")
     df["Date"]=pd.to_datetime(df["Date"])
     return df
 
-
-# =====================================================
-# MAIN FUNCTION
-# =====================================================
 def main():
 
     df=load_data()
@@ -36,9 +27,7 @@ def main():
     ])
 
 
-# =================================================
-# DASHBOARD PAGE (FULL EDA + PREDICTION)
-# =================================================
+# DASHBOARD PAGE 
     if page=="📊 Dashboard":
 
         st.header("📊 Portfolio Dashboard + EDA + Prediction")
@@ -100,9 +89,58 @@ def main():
                         use_container_width=True)
 
 
-        # =================================================
-        # 🔮 PROFIT PREDICTION
-        # =================================================
+        
+
+# =================================================
+# MIX CALCULATOR
+# =================================================
+    if page=="⚙ Investment Mix Calculator":
+
+        st.header("Investment Mix Calculator")
+
+        amount=st.number_input("Amount to Invest",value=1000.0)
+        risk=st.selectbox("Risk Level",["Low","Medium","High"])
+
+        returns=df.groupby("Crypto").apply(
+            lambda x:(x.Close.iloc[-1]-x.Close.iloc[0])/x.Close.iloc[0]
+        ).reset_index(name="Return")
+
+        vol=df.groupby("Crypto")["Close"].std().reset_index(name="Vol")
+
+        m=returns.merge(vol,on="Crypto")
+        m["Return_n"]=m.Return/m.Return.max()
+        m["Vol_n"]=m.Vol/m.Vol.max()
+
+        if risk=="Low": m["Score"]=.7*(1-m.Vol_n)+.3*m.Return_n
+        elif risk=="Medium": m["Score"]=.5*(1-m.Vol_n)+.5*m.Return_n
+        else: m["Score"]=.3*(1-m.Vol_n)+.7*m.Return_n
+
+        m["Allocation %"]=m.Score/m.Score.sum()*100
+        m["Investment"]=m["Allocation %"]/100*amount
+
+        st.dataframe(m[["Crypto","Allocation %","Investment"]])
+        st.plotly_chart(px.pie(m,names="Crypto",values="Investment"),
+                        use_container_width=True)
+
+        st.download_button("Download CSV",m.to_csv(index=False),"investment_mix.csv")
+
+
+# =================================================
+# RISK CHECKER
+# =================================================
+    if page=="⚠ Risk Checker":
+
+        st.header("Risk Checker + Predictor")
+
+        if st.button("Run Risk Check"):
+            result=run_risk_checks(df)
+            st.dataframe(result)
+
+            if (result["Risk"]=="High").any():
+                send_alert(result)
+                st.warning("High risk detected. Email sent.")
+                
+    # 🔮 PROFIT PREDICTION
         st.subheader("🔮 Profit Prediction")
 
         col1,col2,col3=st.columns(3)
@@ -153,59 +191,8 @@ def main():
         st.plotly_chart(fig,use_container_width=True)
 
 
-# =================================================
-# MIX CALCULATOR
-# =================================================
-    if page=="⚙ Investment Mix Calculator":
 
-        st.header("Investment Mix Calculator")
-
-        amount=st.number_input("Amount to Invest",value=1000.0)
-        risk=st.selectbox("Risk Level",["Low","Medium","High"])
-
-        returns=df.groupby("Crypto").apply(
-            lambda x:(x.Close.iloc[-1]-x.Close.iloc[0])/x.Close.iloc[0]
-        ).reset_index(name="Return")
-
-        vol=df.groupby("Crypto")["Close"].std().reset_index(name="Vol")
-
-        m=returns.merge(vol,on="Crypto")
-        m["Return_n"]=m.Return/m.Return.max()
-        m["Vol_n"]=m.Vol/m.Vol.max()
-
-        if risk=="Low": m["Score"]=.7*(1-m.Vol_n)+.3*m.Return_n
-        elif risk=="Medium": m["Score"]=.5*(1-m.Vol_n)+.5*m.Return_n
-        else: m["Score"]=.3*(1-m.Vol_n)+.7*m.Return_n
-
-        m["Allocation %"]=m.Score/m.Score.sum()*100
-        m["Investment"]=m["Allocation %"]/100*amount
-
-        st.dataframe(m[["Crypto","Allocation %","Investment"]])
-        st.plotly_chart(px.pie(m,names="Crypto",values="Investment"),
-                        use_container_width=True)
-
-        st.download_button("Download CSV",m.to_csv(index=False),"investment_mix.csv")
-
-
-# =================================================
-# RISK CHECKER
-# =================================================
-    if page=="⚠ Risk Checker":
-
-        st.header("Risk Checker + Predictor")
-
-        if st.button("Run Risk Check"):
-            result=run_risk_checks(df)
-            st.dataframe(result)
-
-            if (result["Risk"]=="High").any():
-                send_alert(result)
-                st.warning("High risk detected. Email sent.")
-
-
-# =================================================
 # USER PROFILE
-# =================================================
     if page=="👤 User Profile":
 
         st.header("👤 User Profile")
