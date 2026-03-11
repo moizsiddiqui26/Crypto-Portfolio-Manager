@@ -1,59 +1,47 @@
 # =====================================================
-# CRYPTO PORTFOLIO MANAGER - MAIN APP (EMAIL REGISTER)
+# CRYPTO PORTFOLIO MANAGER - FINAL APP
 # =====================================================
 
 import streamlit as st
-import json
-import os
+import json,os
 from email_alert import send_registration_mail
 
-
 # ---------------- PAGE CONFIG ----------------
-st.set_page_config(page_title="Crypto Portfolio Manager", layout="wide")
+st.set_page_config(page_title="Crypto Portfolio Manager",layout="wide")
 
-USER_DB = "users.json"
-
+USER_DB="users.json"
 
 # ---------------- LOAD USERS ----------------
 def load_users():
     if not os.path.exists(USER_DB):
         return {}
     try:
-        with open(USER_DB, "r") as f:
+        with open(USER_DB,"r") as f:
             return json.load(f)
     except:
         return {}
 
-
 # ---------------- SAVE USER ----------------
-def save_user(name, username, email, password):
-
-    users = load_users()
-
-    if username in users:
+def save_user(name,u,p):
+    users=load_users()
+    if u in users:
         return False
+    users[u]={"name":name,"password":p}
+    with open(USER_DB,"w") as f:
+        json.dump(users,f)
 
-    users[username] = {
-        "name": name,
-        "email": email,
-        "password": password
-    }
-
-    with open(USER_DB, "w") as f:
-        json.dump(users, f)
-
-    # 👉 send mail to user email
-    send_registration_mail(name, email)
+    # send mail
+    send_registration_mail(u)
 
     return True
 
 
 # ---------------- SESSION STATE ----------------
 if "auth" not in st.session_state:
-    st.session_state.auth = False
+    st.session_state.auth=False
 
 if "mode" not in st.session_state:
-    st.session_state.mode = "login"
+    st.session_state.mode="login"
 
 
 # =====================================================
@@ -63,55 +51,47 @@ def auth_ui():
 
     st.title("🚀 Crypto Portfolio Manager")
 
-    # ---------------- LOGIN ----------------
-    if st.session_state.mode == "login":
+    # LOGIN
+    if st.session_state.mode=="login":
 
-        with st.form("login_form"):
-
-            username = st.text_input("Username")
-            password = st.text_input("Password", type="password")
+        with st.form("login"):
+            u=st.text_input("Username")
+            p=st.text_input("Password",type="password")
 
             if st.form_submit_button("Login"):
 
-                users = load_users()
+                users=load_users()
 
-                if username in users and users[username]["password"] == password:
-                    st.session_state.auth = True
-                    st.session_state.user = username
+                if u in users and users[u]["password"]==p:
+                    st.session_state.auth=True
+                    st.session_state.user=u
                     st.rerun()
                 else:
-                    st.error("Invalid username or password")
+                    st.error("Invalid Username or Password")
 
-        if st.button("Create Account"):
-            st.session_state.mode = "register"
+        if st.button("Register"):
+            st.session_state.mode="register"
             st.rerun()
 
-    # ---------------- REGISTER ----------------
+    # REGISTER
     else:
 
-        with st.form("register_form"):
-
-            name = st.text_input("Full Name")
-            username = st.text_input("Username")
-            email = st.text_input("Email")
-            password = st.text_input("Password", type="password")
+        with st.form("register"):
+            name=st.text_input("Full Name")
+            u=st.text_input("Username")
+            p=st.text_input("Password",type="password")
 
             if st.form_submit_button("Register"):
 
-                if name and username and email and password:
-
-                    if save_user(name, username, email, password):
-                        st.success("Registration successful!")
-                        st.session_state.mode = "login"
-                        st.rerun()
-                    else:
-                        st.error("Username already exists")
-
+                if save_user(name,u,p):
+                    st.success("Registration Successful")
+                    st.session_state.mode="login"
+                    st.rerun()
                 else:
-                    st.warning("Fill all fields")
+                    st.error("Username already exists")
 
         if st.button("Back to Login"):
-            st.session_state.mode = "login"
+            st.session_state.mode="login"
             st.rerun()
 
 
@@ -124,11 +104,15 @@ if not st.session_state.auth:
 
 else:
 
-    st.write(f"👋 Welcome **{st.session_state.user}**")
+    col1,col2=st.columns([6,1])
 
-    if st.button("Logout"):
-        st.session_state.auth = False
-        st.rerun()
+    with col1:
+        st.write(f"👋 Welcome **{st.session_state.user}**")
+
+    with col2:
+        if st.button("Logout"):
+            st.session_state.auth=False
+            st.rerun()
 
     st.divider()
 
