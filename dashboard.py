@@ -192,123 +192,123 @@ def main():
 # =================================================
 # 👤 USER PROFILE (FINAL FULL VERSION)
 # =================================================
-if page=="👤 User Profile":
+    if page=="👤 User Profile":
 
-    st.header("👤 User Profile")
+        st.header("👤 User Profile")
 
-    email=st.session_state.email
-    file="holdings.json"
+        email=st.session_state.email
+        file="holdings.json"
 
-    # LOAD DATA
-    if os.path.exists(file):
-        with open(file,"r") as f:
-            data=json.load(f)
-    else:
-        data={}
+        # LOAD DATA
+        if os.path.exists(file):
+            with open(file,"r") as f:
+                data=json.load(f)
+        else:
+            data={}
 
-    if email not in data:
-        data[email]=[]
+        if email not in data:
+            data[email]=[]
 
-    hold=data[email]
+        hold=data[email]
 
 # ================= ADD INVESTMENT =================
 
-    st.subheader("➕ Add Investment")
+        st.subheader("➕ Add Investment")
 
-    coin=st.selectbox("Crypto",df["Crypto"].unique())
-    amt=st.number_input("Amount ($)",min_value=0.0)
-    date=st.date_input("Purchase Date")
+        coin=st.selectbox("Crypto",df["Crypto"].unique())
+        amt=st.number_input("Amount ($)",min_value=0.0)
+        date=st.date_input("Purchase Date")
 
-    if st.button("Save Investment"):
+        if st.button("Save Investment"):
 
-        hold.append({
-            "crypto":coin,
-            "amount":amt,
-            "date":str(date)
-        })
+            hold.append({
+                "crypto":coin,
+                "amount":amt,
+                "date":str(date)
+            })
 
-        data[email]=hold
+            data[email]=hold
 
-        with open(file,"w") as f:
-            json.dump(data,f)
+            with open(file,"w") as f:
+                json.dump(data,f)
 
-        st.success("Saved Successfully")
+            st.success("Saved Successfully")
 
 
 # ================= TABLE =================
 
-    if hold:
+        if hold:
 
-        st.subheader("📊 Investment Summary")
+            st.subheader("📊 Investment Summary")
 
-        latest=df.sort_values("Date").groupby("Crypto").tail(1)
+            latest=df.sort_values("Date").groupby("Crypto").tail(1)
 
-        rows=[]
+            rows=[]
 
-        for h in hold:
+            for h in hold:
 
-            coin=h["crypto"]
-            amt=h["amount"]
-            buy_date=pd.to_datetime(h["date"])
+                coin=h["crypto"]
+                amt=h["amount"]
+                buy_date=pd.to_datetime(h["date"])
 
             # price at investment date
-            past=df[(df["Crypto"]==coin)&(df["Date"]<=buy_date)].tail(1)
+                past=df[(df["Crypto"]==coin)&(df["Date"]<=buy_date)].tail(1)
 
-            buy_price=float(past["Close"]) if not past.empty else 0
+                buy_price=float(past["Close"]) if not past.empty else 0
 
             # current price
-            current_price=float(latest[latest["Crypto"]==coin]["Close"])
+                current_price=float(latest[latest["Crypto"]==coin]["Close"])
 
             # quantity
-            qty=amt/buy_price if buy_price>0 else 0
+                qty=amt/buy_price if buy_price>0 else 0
 
             # profit %
-            profit_pct=((current_price-buy_price)/buy_price*100) if buy_price>0 else 0
+                profit_pct=((current_price-buy_price)/buy_price*100) if buy_price>0 else 0
 
-            rows.append([
-                coin,
-                buy_date.date(),
-                amt,
-                qty,
-                buy_price,
-                current_price,
-                profit_pct
+                rows.append([
+                    coin,
+                    buy_date.date(),
+                    amt,
+                    qty,
+                    buy_price,
+                    current_price,
+                    profit_pct
+                ])
+
+            table=pd.DataFrame(rows,columns=[
+                "Currency",
+                "Purchase Date",
+                "Invested Amount ($)",
+                "Quantity",
+                "Price at Purchase ($)",
+                "Current Price ($)",
+                "Profit %"
             ])
 
-        table=pd.DataFrame(rows,columns=[
-            "Currency",
-            "Purchase Date",
-            "Invested Amount ($)",
-            "Quantity",
-            "Price at Purchase ($)",
-            "Current Price ($)",
-            "Profit %"
-        ])
-
-        st.dataframe(table,use_container_width=True)
+            st.dataframe(table,use_container_width=True)
 
 
 # ================= CHARTS =================
 
-        st.subheader("📊 Portfolio Distribution")
+            st.subheader("📊 Portfolio Distribution")
 
-        st.plotly_chart(px.pie(table,
-                               names="Currency",
-                               values="Invested Amount ($)"),
-                        use_container_width=True)
+            st.plotly_chart(px.pie(table,
+                                   names="Currency",
+                                   values="Invested Amount ($)"),
+                            use_container_width=True)
 
 
-        st.subheader("📈 Performance Comparison")
+            st.subheader("📈 Performance Comparison")
 
-        fig=px.bar(table,
-                   x="Currency",
-                   y="Profit %",
-                   color="Currency",
-                   text="Profit %")
+            fig=px.bar(table,
+                       x="Currency",
+                       y="Profit %",
+                       color="Currency",
+                       text="Profit %")
 
-        fig.update_traces(texttemplate='%{text:.2f}%',textposition="outside")
+            fig.update_traces(texttemplate='%{text:.2f}%',textposition="outside")
 
-        st.plotly_chart(fig,use_container_width=True)
+            st.plotly_chart(fig,use_container_width=True)
 
-    else:
-        st.info("No investments added yet.")
+        else:
+            st.info("No investments added yet.")
