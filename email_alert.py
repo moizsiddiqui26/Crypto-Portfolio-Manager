@@ -83,3 +83,19 @@ Stay alert 🚨
 
     except Exception as e:
         print("Risk mail failed:",e)
+def send_otp_mail(email,otp):
+
+    body=f"""
+Your OTP is: {otp}
+
+Do not share with anyone.
+"""
+
+    msg=MIMEText(body)
+    msg["Subject"]="OTP Verification"
+    msg["From"]=SENDER
+    msg["To"]=email
+
+    with smtplib.SMTP_SSL("smtp.gmail.com",465) as s:
+        s.login(SENDER,APP_PASSWORD)
+        s.send_message(msg)
