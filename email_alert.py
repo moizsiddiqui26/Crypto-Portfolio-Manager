@@ -7,7 +7,7 @@ from email.mime.text import MIMEText
 
 # ---------------- CONFIG ----------------
 SENDER="managercryptoportfolio@gmail.com"
-APP_PASSWORD="YOUR_APP_PASSWORD"   # 🔥 PUT APP PASSWORD HERE
+APP_PASSWORD="ajlu qjxx absa heei"   # 🔥 PUT APP PASSWORD HERE
 
 
 # =====================================================
