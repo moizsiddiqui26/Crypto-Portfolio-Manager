@@ -1,18 +1,11 @@
-# =====================================================
-# EMAIL ALERT SYSTEM - FINAL VERSION
-# =====================================================
-
 import smtplib
 from email.mime.text import MIMEText
 
-# ---------------- EMAIL CONFIG ----------------
+# EMAIL CONFIG 
 SENDER="managercryptoportfolio@gmail.com"
-APP_PASSWORD="YOUR_APP_PASSWORD"   # 👉 replace this
+APP_PASSWORD="ajlu qjxx absa heei" 
 
-
-# =====================================================
 # REGISTRATION MAIL
-# =====================================================
 def send_registration_mail(username):
 
     body=f"""
@@ -31,16 +24,15 @@ Crypto Portfolio Manager
     msg=MIMEText(body)
     msg["Subject"]="Registration Successful"
     msg["From"]=SENDER
-    msg["To"]=SENDER   # sending to same mail (your instruction)
+    msg["To"]=SENDER   )
 
     with smtplib.SMTP_SSL("smtp.gmail.com",465) as server:
         server.login(SENDER,APP_PASSWORD)
         server.send_message(msg)
 
 
-# =====================================================
+
 # RISK ALERT MAIL
-# =====================================================
 def send_alert(df):
 
     body=f"""
