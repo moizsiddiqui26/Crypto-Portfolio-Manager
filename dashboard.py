@@ -138,7 +138,7 @@ def main():
             st.dataframe(result)
 
             if (result["Risk"]=="High").any():
-                send_alert(result)
+                send_alert(result,st.session_state.email)
                 st.warning("High risk detected. Email sent.")
 
         st.divider()
