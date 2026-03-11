@@ -1,57 +1,63 @@
+# =====================================================
+# EMAIL ALERT SYSTEM (100% CLEAN VERSION)
+# =====================================================
+
 import smtplib
 from email.mime.text import MIMEText
 
-# EMAIL CONFIG 
-SENDER="managercryptoportfolio@gmail.com"
-APP_PASSWORD="ajlu qjxx absa heei" 
+# 👉 CHANGE THIS ONLY
+SENDER = "managercryptoportfolio@gmail.com"
+APP_PASSWORD = "ajlu qjxx absa heei"
 
-# REGISTRATION MAIL
+
+# ---------------- REGISTRATION MAIL ----------------
 def send_registration_mail(username):
 
-    body=f"""
-Welcome to Crypto Portfolio Manager 🚀
+    try:
 
+        body = f"""
 Hello {username},
 
-Your registration was successful.
+Welcome to Crypto Portfolio Manager 🚀
 
-You can now log in and start managing your crypto investments.
+Your registration was successful.
 
 Regards,
 Crypto Portfolio Manager
 """
 
-    msg=MIMEText(body)
-    msg["Subject"]="Registration Successful"
-    msg["From"]=SENDER
-    msg["To"]=SENDER   )
+        msg = MIMEText(body)
+        msg["Subject"] = "Registration Successful"
+        msg["From"] = SENDER
+        msg["To"] = SENDER
 
-    with smtplib.SMTP_SSL("smtp.gmail.com",465) as server:
-        server.login(SENDER,APP_PASSWORD)
-        server.send_message(msg)
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(SENDER, APP_PASSWORD)
+            server.send_message(msg)
+
+    except Exception as e:
+        print("Registration mail failed:", e)
 
 
-
-# RISK ALERT MAIL
+# ---------------- RISK ALERT ----------------
 def send_alert(df):
 
-    body=f"""
+    try:
+
+        body = f"""
 ⚠ HIGH RISK ALERT
 
-Some cryptocurrencies show high volatility.
-
-Details:
-
 {df.to_string()}
-
-Check dashboard for updates.
 """
 
-    msg=MIMEText(body)
-    msg["Subject"]="Crypto Risk Alert"
-    msg["From"]=SENDER
-    msg["To"]=SENDER
+        msg = MIMEText(body)
+        msg["Subject"] = "Crypto Risk Alert"
+        msg["From"] = SENDER
+        msg["To"] = SENDER
 
-    with smtplib.SMTP_SSL("smtp.gmail.com",465) as server:
-        server.login(SENDER,APP_PASSWORD)
-        server.send_message(msg)
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(SENDER, APP_PASSWORD)
+            server.send_message(msg)
+
+    except Exception as e:
+        print("Risk mail failed:", e)
