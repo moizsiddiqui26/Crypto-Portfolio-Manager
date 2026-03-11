@@ -5,7 +5,7 @@
 import streamlit as st
 import json
 import os
-from email_alert import send_registration_mail from email_alert
+from email_alert import send_registration_mail 
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="Crypto Investment Manager",layout="wide")
 
@@ -103,5 +103,6 @@ else:
 
     import dashboard
     dashboard.main()
+
 
 
