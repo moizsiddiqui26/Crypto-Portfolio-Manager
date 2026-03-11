@@ -1,12 +1,11 @@
 # =====================================================
-# CRYPTO PORTFOLIO MANAGER - FINAL APP (FULL)
+# CRYPTO PORTFOLIO MANAGER - FINAL APP (OTP VERSION)
 # =====================================================
 
 import streamlit as st
-import json,os
-from email_alert import send_registration_mail
+import json,os,random
+from email_alert import send_registration_mail,send_otp_mail
 
-# ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="Crypto Portfolio Manager",layout="wide")
 
 USER_DB="users.json"
@@ -24,87 +23,186 @@ def load_users():
         return {}
 
 # =====================================================
-# SAVE USER
+# SAVE USERS
 # =====================================================
-def save_user(name,u,p):
-    users=load_users()
-    if u in users:
-        return False
-    users[u]={"name":name,"password":p}
+def save_users(users):
     with open(USER_DB,"w") as f:
         json.dump(users,f)
-    return True
-
 
 # =====================================================
 # SESSION STATE
 # =====================================================
-if "auth" not in st.session_state:
-    st.session_state.auth=False
-
-if "mode" not in st.session_state:
-    st.session_state.mode="login"
+if "auth" not in st.session_state: st.session_state.auth=False
+if "mode" not in st.session_state: st.session_state.mode="login"
+if "otp" not in st.session_state: st.session_state.otp=None
+if "reset_user" not in st.session_state: st.session_state.reset_user=None
 
 
 # =====================================================
-# AUTH UI
+# LOGIN UI
 # =====================================================
-def auth_ui():
+def login_ui():
 
     st.title("🚀 Crypto Portfolio Manager")
 
-# ---------------- LOGIN ----------------
+    users=load_users()
+
+# ================= LOGIN =================
     if st.session_state.mode=="login":
 
         with st.form("login_form"):
 
-            u=st.text_input("Email / Username")
-            p=st.text_input("Password",type="password")
+            email=st.text_input("Email")
+            pwd=st.text_input("Password",type="password")
 
             if st.form_submit_button("Login"):
 
-                users=load_users()
-
-                if u in users and users[u]["password"]==p:
+                if email in users and users[email]["password"]==pwd:
 
                     st.session_state.auth=True
-                    st.session_state.user=u
-                    st.session_state.email=u   # ✅ IMPORTANT
-
+                    st.session_state.user=email
+                    st.session_state.email=email
                     st.rerun()
 
                 else:
-                    st.error("Invalid Email or Password")
+                    st.error("Invalid login")
 
-        if st.button("Register"):
-            st.session_state.mode="register"
-            st.rerun()
+        col1,col2=st.columns(2)
 
-# ---------------- REGISTER ----------------
-    else:
+        with col1:
+            if st.button("Login with OTP"):
+                st.session_state.mode="otp"
 
-        with st.form("register_form"):
+        with col2:
+            if st.button("Forgot Password"):
+                st.session_state.mode="forgot"
+
+# ================= REGISTER =================
+    elif st.session_state.mode=="register":
+
+        with st.form("reg_form"):
 
             name=st.text_input("Full Name")
-            u=st.text_input("Email (used for alerts)")
-            p=st.text_input("Password",type="password")
+            email=st.text_input("Email")
+            pwd=st.text_input("Password",type="password")
 
             if st.form_submit_button("Register"):
 
-                if save_user(name,u,p):
+                if email not in users:
 
-                    send_registration_mail(u)   # ✅ SEND MAIL
+                    users[email]={"name":name,"password":pwd}
+                    save_users(users)
 
-                    st.success("Registration Successful ✅")
+                    send_registration_mail(email)
+
+                    st.success("Registered Successfully")
                     st.session_state.mode="login"
                     st.rerun()
 
                 else:
-                    st.error("User already exists")
+                    st.error("User exists")
 
-        if st.button("Back to Login"):
+        if st.button("Back"):
             st.session_state.mode="login"
-            st.rerun()
+
+# ================= OTP LOGIN =================
+    elif st.session_state.mode=="otp":
+
+        email=st.text_input("Enter Email")
+
+        if st.button("Send OTP"):
+
+            if email in users:
+
+                otp=str(random.randint(100000,999999))
+                st.session_state.otp=otp
+                st.session_state.reset_user=email
+
+                send_otp_mail(email,otp)
+
+                st.success("OTP sent")
+
+            else:
+                st.error("Email not registered")
+
+        otp_input=st.text_input("Enter OTP")
+
+        if st.button("Verify OTP"):
+
+            if otp_input==st.session_state.otp:
+
+                st.session_state.auth=True
+                st.session_state.user=st.session_state.reset_user
+                st.session_state.email=st.session_state.reset_user
+                st.rerun()
+
+            else:
+                st.error("Wrong OTP")
+
+        if st.button("Back"):
+            st.session_state.mode="login"
+
+# ================= FORGOT PASSWORD =================
+    elif st.session_state.mode=="forgot":
+
+        email=st.text_input("Enter Email")
+
+        if st.button("Send Reset OTP"):
+
+            if email in users:
+
+                otp=str(random.randint(100000,999999))
+                st.session_state.otp=otp
+                st.session_state.reset_user=email
+
+                send_otp_mail(email,otp)
+
+                st.success("OTP sent")
+
+            else:
+                st.error("Email not found")
+
+        otp_input=st.text_input("Enter OTP")
+        new_pass=st.text_input("New Password",type="password")
+
+        if st.button("Reset Password"):
+
+            if otp_input==st.session_state.otp:
+
+                users[email]["password"]=new_pass
+                save_users(users)
+
+                st.success("Password Updated")
+                st.session_state.mode="login"
+                st.rerun()
+
+            else:
+                st.error("Wrong OTP")
+
+
+# =====================================================
+# PROFILE EDIT
+# =====================================================
+def profile_edit():
+
+    st.subheader("✏ Edit Profile")
+
+    users=load_users()
+    email=st.session_state.email
+
+    name=st.text_input("Name",users[email]["name"])
+    new_pass=st.text_input("New Password",type="password")
+
+    if st.button("Update Profile"):
+
+        users[email]["name"]=name
+
+        if new_pass:
+            users[email]["password"]=new_pass
+
+        save_users(users)
+
+        st.success("Profile Updated")
 
 
 # =====================================================
@@ -112,7 +210,7 @@ def auth_ui():
 # =====================================================
 if not st.session_state.auth:
 
-    auth_ui()
+    login_ui()
 
 else:
 
@@ -125,6 +223,10 @@ else:
         if st.button("Logout"):
             st.session_state.auth=False
             st.rerun()
+
+    st.divider()
+
+    profile_edit()
 
     st.divider()
 
