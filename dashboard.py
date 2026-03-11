@@ -1,6 +1,5 @@
 # =====================================================
-# CRYPTO PORTFOLIO MANAGER - FINAL DASHBOARD (UPDATED)
-# Predictor moved inside Risk Checker
+# CRYPTO PORTFOLIO MANAGER - FINAL DASHBOARD
 # =====================================================
 
 import streamlit as st
@@ -36,9 +35,8 @@ def main():
     "👤 User Profile"
     ])
 
-
 # =================================================
-# DASHBOARD PAGE (EDA ONLY)
+# DASHBOARD PAGE (FULL EDA)
 # =================================================
     if page=="📊 Dashboard":
 
@@ -50,7 +48,6 @@ def main():
         f=df[df["Crypto"].isin(sel)]
         latest=f.sort_values("Date").groupby("Crypto").tail(1)
 
-        # METRICS
         col1,col2,col3=st.columns(3)
         col1.metric("Assets",len(latest))
         col2.metric("Avg Price",f"${latest.Close.mean():,.2f}")
@@ -58,18 +55,15 @@ def main():
 
         st.divider()
 
-        # PRICE TREND
         st.subheader("📈 Price Trend")
         st.plotly_chart(px.line(f,x="Date",y="Close",color="Crypto"),
                         use_container_width=True)
 
-        # VOLATILITY
         st.subheader("📊 Volatility")
         volatility=f.groupby("Crypto")["Close"].std().reset_index()
         st.plotly_chart(px.bar(volatility,x="Crypto",y="Close",color="Crypto"),
                         use_container_width=True)
 
-        # RETURNS
         st.subheader("📉 Return %")
         returns=f.groupby("Crypto").apply(
             lambda x:(x.Close.iloc[-1]-x.Close.iloc[0])/x.Close.iloc[0]*100
@@ -78,7 +72,6 @@ def main():
         st.plotly_chart(px.bar(returns,x="Crypto",y="Return %",color="Crypto"),
                         use_container_width=True)
 
-        # MOVING AVERAGE
         st.subheader("📈 Moving Average")
 
         f["MA20"]=f.groupby("Crypto")["Close"].transform(lambda x:x.rolling(20).mean())
@@ -86,12 +79,10 @@ def main():
         st.plotly_chart(px.line(f,x="Date",y="MA20",color="Crypto"),
                         use_container_width=True)
 
-        # BOXPLOT
         st.subheader("📦 Distribution")
         st.plotly_chart(px.box(f,x="Crypto",y="Close",color="Crypto"),
                         use_container_width=True)
 
-        # HEATMAP
         st.subheader("🔥 Correlation Heatmap")
 
         pivot=f.pivot(index="Date",columns="Crypto",values="Close")
@@ -152,7 +143,6 @@ def main():
 
         st.divider()
 
-        # ================= PREDICTOR =================
         st.subheader("🔮 Profit Prediction")
 
         cryptos=sorted(df["Crypto"].unique())
@@ -206,8 +196,120 @@ def main():
 
 
 # =================================================
-# USER PROFILE (SAME)
+# USER PROFILE (FINAL WITH EXTRA CHART)
 # =================================================
     if page=="👤 User Profile":
 
-        st.info("User Profile remains same (use your latest version)")
+        st.header("👤 User Profile")
+
+        email=st.session_state.email
+        HOLDINGS_FILE="holdings.json"
+
+        # SAFE LOAD
+        if os.path.exists(HOLDINGS_FILE):
+            try:
+                with open(HOLDINGS_FILE,"r") as f:
+                    all_hold=json.load(f)
+            except:
+                all_hold={}
+        else:
+            all_hold={}
+
+        if email not in all_hold:
+            all_hold[email]=[]
+
+        hold=all_hold[email]
+
+        st.subheader("📊 Investment Overview")
+
+        if hold:
+
+            latest=df.sort_values("Date").groupby("Crypto").tail(1)
+
+            rows=[]
+            total_invested=0
+            total_current=0
+
+            for h in hold:
+
+                coin=h["crypto"]
+                invest_amt=h["amount"]
+                invest_date=pd.to_datetime(h["date"])
+
+                past=df[(df["Crypto"]==coin)&(df["Date"]<=invest_date)].tail(1)
+
+                past_price=float(past["Close"]) if not past.empty else 0
+                current_price=float(latest[latest["Crypto"]==coin]["Close"])
+
+                units=invest_amt/past_price if past_price>0 else 0
+                current_value=units*current_price
+                profit=((current_value-invest_amt)/invest_amt*100) if invest_amt>0 else 0
+
+                total_invested+=invest_amt
+                total_current+=current_value
+
+                rows.append([
+                    coin,invest_date.date(),invest_amt,past_price,
+                    current_price,units,current_value,profit
+                ])
+
+            table=pd.DataFrame(rows,columns=[
+                "Crypto","Date","Invested","Buy Price",
+                "Current Price","Units","Current Value","Profit %"
+            ])
+
+            col1,col2,col3=st.columns(3)
+
+            col1.metric("Total Invested",f"${total_invested:,.2f}")
+            col2.metric("Current Value",f"${total_current:,.2f}")
+            col3.metric("Profit %",
+                        f"{((total_current-total_invested)/total_invested*100):.2f}%")
+
+            st.dataframe(table,use_container_width=True)
+
+            st.plotly_chart(px.pie(table,names="Crypto",values="Current Value"),
+                            use_container_width=True)
+
+            # EXTRA RESULT CHART
+            st.subheader("📊 Performance Comparison")
+
+            fig_result=px.bar(table,x="Crypto",y="Profit %",
+                              color="Crypto",text="Profit %")
+
+            fig_result.update_traces(texttemplate='%{text:.2f}%',textposition="outside")
+
+            st.plotly_chart(fig_result,use_container_width=True)
+
+        st.divider()
+
+        # ADD INVESTMENT
+        st.subheader("➕ Add Investment")
+
+        cryptos=sorted(df["Crypto"].unique())
+
+        col1,col2,col3=st.columns(3)
+
+        with col1:
+            coin=st.selectbox("Crypto Currency",cryptos)
+
+        with col2:
+            invest_amt=st.number_input("Amount Invested",min_value=0.0)
+
+        with col3:
+            invest_date=st.date_input("Date")
+
+        if st.button("Save Investment"):
+
+            hold.append({
+                "crypto":coin,
+                "amount":invest_amt,
+                "date":str(invest_date)
+            })
+
+            all_hold[email]=hold
+
+            with open(HOLDINGS_FILE,"w") as f:
+                json.dump(all_hold,f)
+
+            st.success("Saved")
+            st.rerun()
