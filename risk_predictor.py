@@ -9,13 +9,6 @@ def calc_risk(data):
 
 def run_risk_checks(df):
     groups=[g for _,g in df.groupby("Crypto")]
-
     with ThreadPoolExecutor() as ex:
         risks=list(ex.map(calc_risk,groups))
-
-    result=pd.DataFrame({
-        "Crypto":df["Crypto"].unique(),
-        "Risk":risks
-    })
-
-    return result
+    return pd.DataFrame({"Crypto":df["Crypto"].unique(),"Risk":risks})
