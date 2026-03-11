@@ -1,22 +1,16 @@
 # =====================================================
-# CRYPTO PORTFOLIO MANAGER - MAIN APP (FINAL CLEAN)
+# CRYPTO PORTFOLIO MANAGER - MAIN APP (EMAIL REGISTER)
 # =====================================================
 
 import streamlit as st
 import json
 import os
-
-# 👉 IMPORTANT (must be separate clean line)
 from email_alert import send_registration_mail
 
 
 # ---------------- PAGE CONFIG ----------------
-st.set_page_config(
-    page_title="Crypto Portfolio Manager",
-    layout="wide"
-)
+st.set_page_config(page_title="Crypto Portfolio Manager", layout="wide")
 
-# ---------------- USER DATABASE ----------------
 USER_DB = "users.json"
 
 
@@ -32,7 +26,7 @@ def load_users():
 
 
 # ---------------- SAVE USER ----------------
-def save_user(name, username, password):
+def save_user(name, username, email, password):
 
     users = load_users()
 
@@ -41,14 +35,15 @@ def save_user(name, username, password):
 
     users[username] = {
         "name": name,
+        "email": email,
         "password": password
     }
 
     with open(USER_DB, "w") as f:
         json.dump(users, f)
 
-    # 👉 send email after registration
-    send_registration_mail(username)
+    # 👉 send mail to user email
+    send_registration_mail(name, email)
 
     return True
 
@@ -98,13 +93,14 @@ def auth_ui():
 
             name = st.text_input("Full Name")
             username = st.text_input("Username")
+            email = st.text_input("Email")
             password = st.text_input("Password", type="password")
 
             if st.form_submit_button("Register"):
 
-                if name and username and password:
+                if name and username and email and password:
 
-                    if save_user(name, username, password):
+                    if save_user(name, username, email, password):
                         st.success("Registration successful!")
                         st.session_state.mode = "login"
                         st.rerun()
@@ -136,6 +132,5 @@ else:
 
     st.divider()
 
-    # 👉 open dashboard
     import dashboard
     dashboard.main()
