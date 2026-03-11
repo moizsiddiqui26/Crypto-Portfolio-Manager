@@ -6,7 +6,7 @@ import smtplib
 from email.mime.text import MIMEText
 
 SENDER="managercryptoportfolio@gmail.com"
-APP_PASSWORD="YOUR_APP_PASSWORD"   # 🔥 PUT YOUR APP PASSWORD
+APP_PASSWORD="ajlu qjxx absa heei"   # 🔥 PUT YOUR APP PASSWORD
 
 
 # =====================================================
