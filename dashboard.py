@@ -189,59 +189,126 @@ def main():
         st.plotly_chart(fig,use_container_width=True)
 
 
-# =====================================================
-# 👤 USER PROFILE
-# =====================================================
-    if page=="👤 User Profile":
+# =================================================
+# 👤 USER PROFILE (FINAL FULL VERSION)
+# =================================================
+if page=="👤 User Profile":
 
-        email=st.session_state.email
-        file="holdings.json"
+    st.header("👤 User Profile")
 
-        if os.path.exists(file):
-            with open(file,"r") as f: data=json.load(f)
-        else: data={}
+    email=st.session_state.email
+    file="holdings.json"
 
-        if email not in data: data[email]=[]
+    # LOAD DATA
+    if os.path.exists(file):
+        with open(file,"r") as f:
+            data=json.load(f)
+    else:
+        data={}
 
-        hold=data[email]
+    if email not in data:
+        data[email]=[]
 
-        st.subheader("➕ Add Investment")
+    hold=data[email]
 
-        coin=st.selectbox("Crypto",df["Crypto"].unique())
-        amt=st.number_input("Amount",min_value=0.0)
-        date=st.date_input("Date")
+# ================= ADD INVESTMENT =================
 
-        if st.button("Save"):
-            hold.append({"crypto":coin,"amount":amt,"date":str(date)})
-            data[email]=hold
-            with open(file,"w") as f: json.dump(data,f)
-            st.success("Saved")
+    st.subheader("➕ Add Investment")
 
-        if hold:
+    coin=st.selectbox("Crypto",df["Crypto"].unique())
+    amt=st.number_input("Amount ($)",min_value=0.0)
+    date=st.date_input("Purchase Date")
 
-            latest=df.sort_values("Date").groupby("Crypto").tail(1)
+    if st.button("Save Investment"):
 
-            rows=[]
+        hold.append({
+            "crypto":coin,
+            "amount":amt,
+            "date":str(date)
+        })
 
-            for h in hold:
+        data[email]=hold
 
-                coin=h["crypto"]
-                amt=h["amount"]
+        with open(file,"w") as f:
+            json.dump(data,f)
 
-                price=float(latest[latest["Crypto"]==coin]["Close"])
+        st.success("Saved Successfully")
 
-                units=amt/price if price>0 else 0
-                current_val=units*price
-                pct=((current_val-amt)/amt)*100 if amt>0 else 0
 
-                rows.append([coin,amt,current_val,pct])
+# ================= TABLE =================
 
-            table=pd.DataFrame(rows,columns=["Crypto","Invested","Current Value","% Change"])
+    if hold:
 
-            st.dataframe(table)
+        st.subheader("📊 Investment Summary")
 
-            st.plotly_chart(px.pie(table,names="Crypto",values="Current Value"),
-                            use_container_width=True)
+        latest=df.sort_values("Date").groupby("Crypto").tail(1)
 
-            st.plotly_chart(px.bar(table,x="Crypto",y="% Change",color="Crypto"),
-                            use_container_width=True)
+        rows=[]
+
+        for h in hold:
+
+            coin=h["crypto"]
+            amt=h["amount"]
+            buy_date=pd.to_datetime(h["date"])
+
+            # price at investment date
+            past=df[(df["Crypto"]==coin)&(df["Date"]<=buy_date)].tail(1)
+
+            buy_price=float(past["Close"]) if not past.empty else 0
+
+            # current price
+            current_price=float(latest[latest["Crypto"]==coin]["Close"])
+
+            # quantity
+            qty=amt/buy_price if buy_price>0 else 0
+
+            # profit %
+            profit_pct=((current_price-buy_price)/buy_price*100) if buy_price>0 else 0
+
+            rows.append([
+                coin,
+                buy_date.date(),
+                amt,
+                qty,
+                buy_price,
+                current_price,
+                profit_pct
+            ])
+
+        table=pd.DataFrame(rows,columns=[
+            "Currency",
+            "Purchase Date",
+            "Invested Amount ($)",
+            "Quantity",
+            "Price at Purchase ($)",
+            "Current Price ($)",
+            "Profit %"
+        ])
+
+        st.dataframe(table,use_container_width=True)
+
+
+# ================= CHARTS =================
+
+        st.subheader("📊 Portfolio Distribution")
+
+        st.plotly_chart(px.pie(table,
+                               names="Currency",
+                               values="Invested Amount ($)"),
+                        use_container_width=True)
+
+
+        st.subheader("📈 Performance Comparison")
+
+        fig=px.bar(table,
+                   x="Currency",
+                   y="Profit %",
+                   color="Currency",
+                   text="Profit %")
+
+        fig.update_traces(texttemplate='%{text:.2f}%',textposition="outside")
+
+        st.plotly_chart(fig,use_container_width=True)
+
+    else:
+        st.info("No investments added yet.")
