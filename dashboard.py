@@ -2,297 +2,96 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-import numpy as np
-import json,os
+import numpy as np,json,os,requests
 from sklearn.linear_model import LinearRegression
 from risk_predictor import run_risk_checks
 from email_alert import send_alert
 
-
-# ---------------- LOAD DATA ----------------
-@st.cache_data
+@st.cache_data(ttl=300)
 def load_data():
-    df=pd.read_csv("preprocessed_data.csv")
-    df["Date"]=pd.to_datetime(df["Date"])
-    return df
-
+    coins={"BTC":"bitcoin","ETH":"ethereum","BNB":"binancecoin","SOL":"solana","ADA":"cardano"}
+    all_df=[]
+    for c,id in coins.items():
+        url=f"https://api.coingecko.com/api/v3/coins/{id}/market_chart"
+        data=requests.get(url,params={"vs_currency":"usd","days":90}).json()
+        temp=pd.DataFrame(data["prices"],columns=["timestamp","Close"])
+        temp["Date"]=pd.to_datetime(temp["timestamp"],unit="ms")
+        temp["Crypto"]=c
+        all_df.append(temp[["Date","Crypto","Close"]])
+    return pd.concat(all_df)
 
 def main():
-
     df=load_data()
 
     page=st.sidebar.radio("Navigation",[
-    "📊 Dashboard",
-    "⚙ Investment Mix Calculator",
-    "⚠ Risk Checker",
-    "👤 User Profile"
+    "📊 Dashboard","⚙ Investment Mix Calculator","⚠ Risk Checker","👤 User Profile"
     ])
-    
+
+# ================= DASHBOARD =================
     if page=="📊 Dashboard":
 
-        st.header("📊 Portfolio Dashboard + EDA")
+        st.header("📊 Live Crypto Dashboard")
 
-        cryptos=sorted(df["Crypto"].unique())
+        cryptos=df["Crypto"].unique()
         sel=st.multiselect("Select Crypto",cryptos,default=cryptos)
 
         f=df[df["Crypto"].isin(sel)]
-        latest=f.sort_values("Date").groupby("Crypto").tail(1)
 
-        
-        st.divider()
-
-        st.subheader("📈 Price Trend")
         st.plotly_chart(px.line(f,x="Date",y="Close",color="Crypto"),
                         use_container_width=True)
 
-        st.subheader("📊 Volatility")
-        volatility=f.groupby("Crypto")["Close"].std().reset_index()
-        st.plotly_chart(px.bar(volatility,x="Crypto",y="Close",color="Crypto"),
+        vol=f.groupby("Crypto")["Close"].std().reset_index()
+        st.plotly_chart(px.bar(vol,x="Crypto",y="Close",color="Crypto"),
                         use_container_width=True)
 
-        st.subheader("📉 Return %")
-        returns=f.groupby("Crypto").apply(
-            lambda x:(x.Close.iloc[-1]-x.Close.iloc[0])/x.Close.iloc[0]*100
-        ).reset_index(name="Return %")
-
-        st.plotly_chart(px.bar(returns,x="Crypto",y="Return %",color="Crypto"),
-                        use_container_width=True)
-
-        st.subheader("📈 Moving Average")
-
-        f["MA20"]=f.groupby("Crypto")["Close"].transform(lambda x:x.rolling(20).mean())
-
-        st.plotly_chart(px.line(f,x="Date",y="MA20",color="Crypto"),
-                        use_container_width=True)
-
-        st.subheader("📦 Distribution")
-        st.plotly_chart(px.box(f,x="Crypto",y="Close",color="Crypto"),
-                        use_container_width=True)
-
-        st.subheader("🔥 Correlation Heatmap")
-
-        pivot=f.pivot(index="Date",columns="Crypto",values="Close")
-        corr=pivot.corr()
-
-        st.plotly_chart(px.imshow(corr,text_auto=True),
-                        use_container_width=True)
-
-
-# MIX CALCULATOR
-
+# ================= MIX =================
     if page=="⚙ Investment Mix Calculator":
 
-        st.header("Investment Mix Calculator")
-
-        amount=st.number_input("Amount to Invest",value=1000.0)
-        risk=st.selectbox("Risk Level",["Low","Medium","High"])
-
-        returns=df.groupby("Crypto").apply(
-            lambda x:(x.Close.iloc[-1]-x.Close.iloc[0])/x.Close.iloc[0]
-        ).reset_index(name="Return")
-
+        amount=st.number_input("Amount",value=1000.0)
+        returns=df.groupby("Crypto").apply(lambda x:(x.Close.iloc[-1]-x.Close.iloc[0])/x.Close.iloc[0]).reset_index(name="Return")
         vol=df.groupby("Crypto")["Close"].std().reset_index(name="Vol")
 
         m=returns.merge(vol,on="Crypto")
-        m["Return_n"]=m.Return/m.Return.max()
-        m["Vol_n"]=m.Vol/m.Vol.max()
+        m["Score"]=m.Return/m.Vol
+        m["Allocation"]=m.Score/m.Score.sum()*amount
 
-        if risk=="Low": m["Score"]=.7*(1-m.Vol_n)+.3*m.Return_n
-        elif risk=="Medium": m["Score"]=.5*(1-m.Vol_n)+.5*m.Return_n
-        else: m["Score"]=.3*(1-m.Vol_n)+.7*m.Return_n
+        st.dataframe(m)
+        st.download_button("CSV",m.to_csv(index=False),"mix.csv")
 
-        m["Allocation %"]=m.Score/m.Score.sum()*100
-        m["Investment"]=m["Allocation %"]/100*amount
-
-        st.dataframe(m[["Crypto","Allocation %","Investment"]])
-        st.plotly_chart(px.pie(m,names="Crypto",values="Investment"),
-                        use_container_width=True)
-
-        st.download_button("Download CSV",m.to_csv(index=False),"investment_mix.csv")
-
-
-# RISK CHECKER + PREDICTOR
+# ================= RISK =================
     if page=="⚠ Risk Checker":
-
-        st.header("⚠ Risk Checker + Predictor")
 
         if st.button("Run Risk Check"):
             result=run_risk_checks(df)
             st.dataframe(result)
+            send_alert(result,st.session_state.email)
 
-            if (result["Risk"]=="High").any():
-                send_alert(result,st.session_state.email)
-                st.warning("High risk detected. Email sent.")
-
-        st.divider()
-
-        st.subheader("🔮 Profit Prediction")
-
-        cryptos=sorted(df["Crypto"].unique())
-
-        col1,col2,col3=st.columns(3)
-
-        with col1:
-            pred_coin=st.selectbox("Crypto",cryptos)
-
-        with col2:
-            invest_amount=st.number_input("Investment Amount ($)",min_value=1.0,value=1000.0)
-
-        with col3:
-            days=st.number_input("Days",min_value=1,value=7)
-
-        coin_df=df[df["Crypto"]==pred_coin].sort_values("Date")
-
-        coin_df["t"]=range(len(coin_df))
-        x=coin_df["t"].values.reshape(-1,1)
-        y=coin_df["Close"].values
-
-        model=LinearRegression()
-        model.fit(x,y)
-
-        future_t=np.arange(len(coin_df),len(coin_df)+days).reshape(-1,1)
-        future_pred=model.predict(future_t)
-
-        future_dates=pd.date_range(
-            coin_df["Date"].iloc[-1]+pd.Timedelta(days=1),
-            periods=days
-        )
-
-        current_price=coin_df["Close"].iloc[-1]
-        expected_price=future_pred[-1]
-
-        units=invest_amount/current_price
-        expected_value=units*expected_price
-        profit=expected_value-invest_amount
-        profit_pct=(profit/invest_amount)*100
-
-        col1,col2,col3=st.columns(3)
-        col1.metric("Expected Amount",f"${expected_value:,.2f}")
-        col2.metric("Expected Profit",f"${profit:,.2f}")
-        col3.metric("Profit %",f"{profit_pct:.2f}%")
-
-        fig=go.Figure()
-        fig.add_trace(go.Scatter(x=coin_df["Date"],y=coin_df["Close"],name="Actual"))
-        fig.add_trace(go.Scatter(x=future_dates,y=future_pred,name="Predicted"))
-
-        st.plotly_chart(fig,use_container_width=True)
-
-
-# =================================================
-# USER PROFILE (FINAL WITH EXTRA CHART)
-# =================================================
+# ================= PROFILE =================
     if page=="👤 User Profile":
 
-        st.header("👤 User Profile")
-
         email=st.session_state.email
-        HOLDINGS_FILE="holdings.json"
+        file="holdings.json"
 
-        # SAFE LOAD
-        if os.path.exists(HOLDINGS_FILE):
-            try:
-                with open(HOLDINGS_FILE,"r") as f:
-                    all_hold=json.load(f)
-            except:
-                all_hold={}
-        else:
-            all_hold={}
+        if os.path.exists(file):
+            with open(file,"r") as f: data=json.load(f)
+        else: data={}
 
-        if email not in all_hold:
-            all_hold[email]=[]
+        if email not in data: data[email]=[]
 
-        hold=all_hold[email]
+        hold=data[email]
 
-        st.subheader("📊 Investment Overview")
+        st.subheader("Add Investment")
+
+        coin=st.selectbox("Crypto",df["Crypto"].unique())
+        amt=st.number_input("Amount",min_value=0.0)
+        date=st.date_input("Date")
+
+        if st.button("Save"):
+            hold.append({"crypto":coin,"amount":amt,"date":str(date)})
+            data[email]=hold
+            with open(file,"w") as f: json.dump(data,f)
+            st.success("Saved")
 
         if hold:
-
-            latest=df.sort_values("Date").groupby("Crypto").tail(1)
-
-            rows=[]
-            total_invested=0
-            total_current=0
-
-            for h in hold:
-
-                coin=h["crypto"]
-                invest_amt=h["amount"]
-                invest_date=pd.to_datetime(h["date"])
-
-                past=df[(df["Crypto"]==coin)&(df["Date"]<=invest_date)].tail(1)
-
-                past_price=float(past["Close"]) if not past.empty else 0
-                current_price=float(latest[latest["Crypto"]==coin]["Close"])
-
-                units=invest_amt/past_price if past_price>0 else 0
-                current_value=units*current_price
-                profit=((current_value-invest_amt)/invest_amt*100) if invest_amt>0 else 0
-
-                total_invested+=invest_amt
-                total_current+=current_value
-
-                rows.append([
-                    coin,invest_date.date(),invest_amt,past_price,
-                    current_price,units,current_value,profit
-                ])
-
-            table=pd.DataFrame(rows,columns=[
-                "Crypto","Date","Invested","Buy Price",
-                "Current Price","Units","Current Value","Profit %"
-            ])
-
-            col1,col2,col3=st.columns(3)
-
-            col1.metric("Total Invested",f"${total_invested:,.2f}")
-            col2.metric("Current Value",f"${total_current:,.2f}")
-            col3.metric("Profit %",
-                        f"{((total_current-total_invested)/total_invested*100):.2f}%")
-
-            st.dataframe(table,use_container_width=True)
-
-            st.plotly_chart(px.pie(table,names="Crypto",values="Current Value"),
-                            use_container_width=True)
-
-            # EXTRA RESULT CHART
-            st.subheader("📊 Performance Comparison")
-
-            fig_result=px.bar(table,x="Crypto",y="Profit %",
-                              color="Crypto",text="Profit %")
-
-            fig_result.update_traces(texttemplate='%{text:.2f}%',textposition="outside")
-
-            st.plotly_chart(fig_result,use_container_width=True)
-
-        st.divider()
-
-        # ADD INVESTMENT
-        st.subheader("➕ Add Investment")
-
-        cryptos=sorted(df["Crypto"].unique())
-
-        col1,col2,col3=st.columns(3)
-
-        with col1:
-            coin=st.selectbox("Crypto Currency",cryptos)
-
-        with col2:
-            invest_amt=st.number_input("Amount Invested",min_value=0.0)
-
-        with col3:
-            invest_date=st.date_input("Date")
-
-        if st.button("Save Investment"):
-
-            hold.append({
-                "crypto":coin,
-                "amount":invest_amt,
-                "date":str(invest_date)
-            })
-
-            all_hold[email]=hold
-
-            with open(HOLDINGS_FILE,"w") as f:
-                json.dump(all_hold,f)
-
-            st.success("Saved")
-            st.rerun()
+            table=pd.DataFrame(hold)
+            st.dataframe(table)
