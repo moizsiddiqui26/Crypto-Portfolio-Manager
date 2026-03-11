@@ -15,26 +15,93 @@ def main():
     df=load_data()
 
     page=st.sidebar.radio("Navigation",[
-    "Dashboard","Investment Mix Calculator","Risk Checker"])
+    "User Profile","Investment Mix Calculator","Risk Checker"])
 
-    # ---------------- DASHBOARD ----------------
-    if page=="Dashboard":
+    # =================================================
+# USER PROFILE PAGE
+# =================================================
+if page=="👤 User Profile":
 
-        st.header("📊 Portfolio Dashboard")
+    import json,os
 
-        cryptos=sorted(df["Crypto"].unique())
-        sel=st.multiselect("Select",cryptos,default=cryptos)
+    st.header("👤 User Profile")
 
-        f=df[df["Crypto"].isin(sel)]
-        latest=f.sort_values("Date").groupby("Crypto").tail(1)
+    user=st.session_state.get("user","Guest")
 
-        col1,col2,col3=st.columns(3)
-        col1.metric("Assets",len(latest))
-        col2.metric("Avg Price",f"${latest.Close.mean():,.2f}")
-        col3.metric("Volume",f"{latest.Volume.sum():,.0f}")
+    st.subheader(f"Welcome, {user}")
 
-        st.plotly_chart(px.line(f,x="Date",y="Close",color="Crypto"),use_container_width=True)
+    HOLDINGS_FILE="holdings.json"
 
+    # ---------- LOAD HOLDINGS ----------
+    if os.path.exists(HOLDINGS_FILE):
+        with open(HOLDINGS_FILE,"r") as f:
+            all_holdings=json.load(f)
+    else:
+        all_holdings={}
+
+    if user not in all_holdings:
+        all_holdings[user]={}
+
+    holdings=all_holdings[user]
+
+    # ---------- ADD HOLDINGS ----------
+    st.subheader("➕ Add Holdings")
+
+    cryptos=sorted(df["Crypto"].unique())
+
+    col1,col2=st.columns(2)
+
+    with col1:
+        coin=st.selectbox("Crypto",cryptos)
+
+    with col2:
+        amount=st.number_input("Amount Held",min_value=0.0,value=0.0)
+
+    if st.button("Add / Update Holding"):
+
+        holdings[coin]=amount
+        all_holdings[user]=holdings
+
+        with open(HOLDINGS_FILE,"w") as f:
+            json.dump(all_holdings,f)
+
+        st.success("Holding Updated")
+
+    st.divider()
+
+    # ---------- SHOW HOLDINGS ----------
+    st.subheader("📊 Your Portfolio")
+
+    if holdings:
+
+        latest=df.sort_values("Date").groupby("Crypto").tail(1)
+
+        rows=[]
+        total_value=0
+
+        for coin,amt in holdings.items():
+
+            price=float(latest[latest["Crypto"]==coin]["Close"])
+
+            value=amt*price
+            total_value+=value
+
+            rows.append([coin,amt,price,value])
+
+        table=pd.DataFrame(rows,columns=["Crypto","Amount","Price","Value ($)"])
+
+        st.metric("💰 Total Portfolio Value",f"${total_value:,.2f}")
+
+        st.dataframe(table,use_container_width=True)
+
+        # ---------- PIE CHART ----------
+        fig=px.pie(table,names="Crypto",values="Value ($)",hole=0.4,
+                   title="Portfolio Allocation")
+
+        st.plotly_chart(fig,use_container_width=True)
+
+    else:
+        st.info("No holdings added yet")
     # ---------------- MIX CALCULATOR ----------------
     if page=="Investment Mix Calculator":
 
