@@ -32,9 +32,145 @@ def main():
     "👤 User Profile"
     ])
 
-    # =================================================
-    # USER PROFILE (FINAL UPDATED)
-    # =================================================
+
+# =================================================
+# DASHBOARD PAGE (FULL EDA)
+# =================================================
+    if page=="📊 Dashboard":
+
+        st.header("📊 Portfolio Dashboard + EDA")
+
+        cryptos=sorted(df["Crypto"].unique())
+        sel=st.multiselect("Select Crypto",cryptos,default=cryptos)
+
+        f=df[df["Crypto"].isin(sel)]
+
+        latest=f.sort_values("Date").groupby("Crypto").tail(1)
+
+        # METRICS
+        col1,col2,col3=st.columns(3)
+
+        col1.metric("Assets",len(latest))
+        col2.metric("Avg Price",f"${latest.Close.mean():,.2f}")
+        col3.metric("Volume",f"{latest.Volume.sum():,.0f}")
+
+        st.divider()
+
+        # PRICE TREND
+        st.subheader("📈 Price Trend")
+        fig1=px.line(f,x="Date",y="Close",color="Crypto")
+        st.plotly_chart(fig1,use_container_width=True)
+
+        # VOLATILITY
+        st.subheader("📊 Volatility Analysis")
+
+        volatility=f.groupby("Crypto")["Close"].std().reset_index()
+        volatility.columns=["Crypto","Volatility"]
+
+        fig2=px.bar(volatility,x="Crypto",y="Volatility",
+                    title="Crypto Volatility (Std Dev)",
+                    color="Crypto")
+
+        st.plotly_chart(fig2,use_container_width=True)
+
+        # RETURNS
+        st.subheader("📉 Return % Analysis")
+
+        returns=f.groupby("Crypto").apply(
+            lambda x:(x.Close.iloc[-1]-x.Close.iloc[0])/x.Close.iloc[0]*100
+        ).reset_index(name="Return %")
+
+        fig3=px.bar(returns,x="Crypto",y="Return %",
+                    title="Past Return %",
+                    color="Crypto")
+
+        st.plotly_chart(fig3,use_container_width=True)
+
+        # MOVING AVERAGE
+        st.subheader("📈 Moving Average Trend")
+
+        f["MA20"]=f.groupby("Crypto")["Close"].transform(lambda x:x.rolling(20).mean())
+
+        fig4=px.line(f,x="Date",y="MA20",color="Crypto",
+                     title="20-Day Moving Average")
+
+        st.plotly_chart(fig4,use_container_width=True)
+
+        # BOXPLOT
+        st.subheader("📦 Price Distribution")
+
+        fig5=px.box(f,x="Crypto",y="Close",color="Crypto",
+                    title="Price Distribution")
+
+        st.plotly_chart(fig5,use_container_width=True)
+
+        # CORRELATION HEATMAP
+        st.subheader("🔥 Correlation Heatmap")
+
+        pivot=f.pivot(index="Date",columns="Crypto",values="Close")
+
+        corr=pivot.corr()
+
+        fig6=px.imshow(corr,text_auto=True,
+                       title="Crypto Correlation Matrix")
+
+        st.plotly_chart(fig6,use_container_width=True)
+
+
+# =================================================
+# MIX CALCULATOR
+# =================================================
+    if page=="⚙ Investment Mix Calculator":
+
+        st.header("Investment Mix Calculator")
+
+        amount=st.number_input("Amount to Invest",value=1000.0)
+        risk=st.selectbox("Risk Level",["Low","Medium","High"])
+
+        returns=df.groupby("Crypto").apply(
+            lambda x:(x.Close.iloc[-1]-x.Close.iloc[0])/x.Close.iloc[0]
+        ).reset_index(name="Return")
+
+        vol=df.groupby("Crypto")["Close"].std().reset_index(name="Vol")
+
+        m=returns.merge(vol,on="Crypto")
+        m["Return_n"]=m.Return/m.Return.max()
+        m["Vol_n"]=m.Vol/m.Vol.max()
+
+        if risk=="Low": m["Score"]=.7*(1-m.Vol_n)+.3*m.Return_n
+        elif risk=="Medium": m["Score"]=.5*(1-m.Vol_n)+.5*m.Return_n
+        else: m["Score"]=.3*(1-m.Vol_n)+.7*m.Return_n
+
+        m["Allocation %"]=m.Score/m.Score.sum()*100
+        m["Investment"]=m["Allocation %"]/100*amount
+
+        st.dataframe(m[["Crypto","Allocation %","Investment"]])
+
+        st.plotly_chart(px.pie(m,names="Crypto",values="Investment"),
+                        use_container_width=True)
+
+        st.download_button("Download CSV",m.to_csv(index=False),"investment_mix.csv")
+
+
+# =================================================
+# RISK CHECKER
+# =================================================
+    if page=="⚠ Risk Checker":
+
+        st.header("Risk Checker + Predictor")
+
+        if st.button("Run Risk Check"):
+            result=run_risk_checks(df)
+            st.dataframe(result)
+
+            if (result["Risk"]=="High").any():
+                send_alert(result)
+                st.warning("High risk detected. Email sent.")
+
+
+# =================================================
+# USER PROFILE
+# =================================================
     if page=="👤 User Profile":
 
         st.header("👤 User Profile")
@@ -42,10 +178,13 @@ def main():
         user=st.session_state.user
         HOLDINGS_FILE="holdings.json"
 
-        # LOAD HOLDINGS
+        # SAFE LOAD
         if os.path.exists(HOLDINGS_FILE):
-            with open(HOLDINGS_FILE,"r") as f:
-                all_hold=json.load(f)
+            try:
+                with open(HOLDINGS_FILE,"r") as f:
+                    all_hold=json.load(f)
+            except:
+                all_hold={}
         else:
             all_hold={}
 
@@ -54,9 +193,6 @@ def main():
 
         hold=all_hold[user]
 
-        # =================================================
-        # TOP — INVESTMENT DETAILS + EDA
-        # =================================================
         st.subheader("📊 Investment Overview")
 
         if hold:
@@ -67,7 +203,7 @@ def main():
             total_invested=0
             total_current=0
 
-            # -------- FIX OLD + NEW FORMAT --------
+            # FIX OLD FORMAT
             fixed_hold=[]
 
             if isinstance(hold,dict):
@@ -80,7 +216,6 @@ def main():
             else:
                 fixed_hold=hold
 
-            # -------- CALCULATIONS --------
             for h in fixed_hold:
 
                 coin=h["crypto"]
@@ -116,7 +251,6 @@ def main():
                 "Current Value ($)","Profit %"
             ])
 
-            # -------- METRICS --------
             col1,col2,col3=st.columns(3)
 
             col1.metric("💰 Total Invested",f"${total_invested:,.2f}")
@@ -124,35 +258,17 @@ def main():
             col3.metric("🚀 Profit %",
                         f"{((total_current-total_invested)/total_invested*100):.2f}%")
 
-            st.divider()
-
-            # -------- TABLE --------
             st.dataframe(table,use_container_width=True)
 
-            # -------- PIE CHART --------
-            st.subheader("📊 Portfolio Allocation")
-            fig=px.pie(table,names="Crypto",values="Current Value ($)",hole=0.4)
-            st.plotly_chart(fig,use_container_width=True)
-
-            # -------- EDA --------
-            st.subheader("📈 Investment EDA")
-
-            eda=table.groupby("Crypto")["Profit %"].mean().reset_index()
-
-            fig2=px.bar(eda,x="Crypto",y="Profit %",
-                        title="Average Profit % by Crypto",
-                        color="Crypto")
-
-            st.plotly_chart(fig2,use_container_width=True)
+            st.plotly_chart(px.pie(table,names="Crypto",values="Current Value ($)"),
+                            use_container_width=True)
 
         else:
             st.info("No investments added yet")
 
         st.divider()
 
-        # =================================================
-        # BOTTOM — ADD INVESTMENT FORM
-        # =================================================
+        # ADD INVESTMENT (BOTTOM)
         st.subheader("➕ Add Investment")
 
         cryptos=sorted(df["Crypto"].unique())
@@ -183,146 +299,3 @@ def main():
 
             st.success("Investment Saved")
             st.rerun()
-
-
-    # =================================================
-# DASHBOARD PAGE (FULL EDA)
-# =================================================
-if page=="📊 Dashboard":
-
-    st.header("📊 Portfolio Dashboard + EDA")
-
-    cryptos=sorted(df["Crypto"].unique())
-    sel=st.multiselect("Select Crypto",cryptos,default=cryptos)
-
-    f=df[df["Crypto"].isin(sel)]
-
-    latest=f.sort_values("Date").groupby("Crypto").tail(1)
-
-    # ================= METRICS =================
-    col1,col2,col3=st.columns(3)
-
-    col1.metric("Assets",len(latest))
-    col2.metric("Avg Price",f"${latest.Close.mean():,.2f}")
-    col3.metric("Volume",f"{latest.Volume.sum():,.0f}")
-
-    st.divider()
-
-    # =================================================
-    # PRICE TREND
-    # =================================================
-    st.subheader("📈 Price Trend")
-
-    fig1=px.line(f,x="Date",y="Close",color="Crypto")
-    st.plotly_chart(fig1,use_container_width=True)
-
-    # =================================================
-    # VOLATILITY (STD DEV)
-    # =================================================
-    st.subheader("📊 Volatility Analysis")
-
-    volatility=f.groupby("Crypto")["Close"].std().reset_index()
-    volatility.columns=["Crypto","Volatility"]
-
-    fig2=px.bar(volatility,x="Crypto",y="Volatility",
-                title="Crypto Volatility (Std Dev)",
-                color="Crypto")
-
-    st.plotly_chart(fig2,use_container_width=True)
-
-    # =================================================
-    # RETURNS ANALYSIS
-    # =================================================
-    st.subheader("📉 Return % Analysis")
-
-    returns=f.groupby("Crypto").apply(
-        lambda x:(x.Close.iloc[-1]-x.Close.iloc[0])/x.Close.iloc[0]*100
-    ).reset_index(name="Return %")
-
-    fig3=px.bar(returns,x="Crypto",y="Return %",
-                title="Past Return %",
-                color="Crypto")
-
-    st.plotly_chart(fig3,use_container_width=True)
-
-    # =================================================
-    # MOVING AVERAGE TREND
-    # =================================================
-    st.subheader("📈 Moving Average Trend")
-
-    f["MA20"]=f.groupby("Crypto")["Close"].transform(lambda x:x.rolling(20).mean())
-
-    fig4=px.line(f,x="Date",y="MA20",color="Crypto",
-                 title="20-Day Moving Average")
-
-    st.plotly_chart(fig4,use_container_width=True)
-
-    # =================================================
-    # DISTRIBUTION (BOXPLOT)
-    # =================================================
-    st.subheader("📦 Price Distribution")
-
-    fig5=px.box(f,x="Crypto",y="Close",color="Crypto",
-                title="Price Distribution")
-
-    st.plotly_chart(fig5,use_container_width=True)
-
-    # =================================================
-    # CORRELATION HEATMAP (BEST EDA 🔥)
-    # =================================================
-    st.subheader("🔥 Correlation Heatmap")
-
-    pivot=f.pivot(index="Date",columns="Crypto",values="Close")
-
-    corr=pivot.corr()
-
-    fig6=px.imshow(corr,text_auto=True,
-                   title="Crypto Correlation Matrix")
-
-    st.plotly_chart(fig6,use_container_width=True)
-    # =================================================
-    # MIX CALCULATOR
-    # =================================================
-    if page=="⚙ Investment Mix Calculator":
-
-        st.header("Investment Mix Calculator")
-
-        amount=st.number_input("Amount to Invest",value=1000.0)
-        risk=st.selectbox("Risk Level",["Low","Medium","High"])
-
-        returns=df.groupby("Crypto").apply(lambda x:(x.Close.iloc[-1]-x.Close.iloc[0])/x.Close.iloc[0]).reset_index(name="Return")
-        vol=df.groupby("Crypto")["Close"].std().reset_index(name="Vol")
-
-        m=returns.merge(vol,on="Crypto")
-        m["Return_n"]=m.Return/m.Return.max()
-        m["Vol_n"]=m.Vol/m.Vol.max()
-
-        if risk=="Low": m["Score"]=.7*(1-m.Vol_n)+.3*m.Return_n
-        elif risk=="Medium": m["Score"]=.5*(1-m.Vol_n)+.5*m.Return_n
-        else: m["Score"]=.3*(1-m.Vol_n)+.7*m.Return_n
-
-        m["Allocation %"]=m.Score/m.Score.sum()*100
-        m["Investment"]=m["Allocation %"]/100*amount
-
-        st.dataframe(m[["Crypto","Allocation %","Investment"]])
-
-        st.plotly_chart(px.pie(m,names="Crypto",values="Investment"),
-                        use_container_width=True)
-
-        st.download_button("Download CSV",m.to_csv(index=False),"investment_mix.csv")
-
-
-    # =================================================
-    # RISK CHECKER
-    # =================================================
-    if page=="⚠ Risk Checker":
-
-        st.header("Risk Checker + Predictor")
-
-        if st.button("Run Risk Check"):
-            result=run_risk_checks(df)
-            st.dataframe(result)
-
-            if (result["Risk"]=="High").any():
-                send_alert(result)
-                st.warning("High risk detected. Email sent.")
