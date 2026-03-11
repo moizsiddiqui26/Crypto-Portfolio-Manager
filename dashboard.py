@@ -1,7 +1,3 @@
-# =====================================================
-# CRYPTO PORTFOLIO MANAGER - FINAL DASHBOARD
-# =====================================================
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -21,9 +17,6 @@ def load_data():
     return df
 
 
-# =====================================================
-# MAIN FUNCTION
-# =====================================================
 def main():
 
     df=load_data()
@@ -34,10 +27,7 @@ def main():
     "⚠ Risk Checker",
     "👤 User Profile"
     ])
-
-# =================================================
-# DASHBOARD PAGE (FULL EDA)
-# =================================================
+    
     if page=="📊 Dashboard":
 
         st.header("📊 Portfolio Dashboard + EDA")
@@ -92,9 +82,8 @@ def main():
                         use_container_width=True)
 
 
-# =================================================
 # MIX CALCULATOR
-# =================================================
+# 
     if page=="⚙ Investment Mix Calculator":
 
         st.header("Investment Mix Calculator")
@@ -126,9 +115,7 @@ def main():
         st.download_button("Download CSV",m.to_csv(index=False),"investment_mix.csv")
 
 
-# =================================================
 # RISK CHECKER + PREDICTOR
-# =================================================
     if page=="⚠ Risk Checker":
 
         st.header("⚠ Risk Checker + Predictor")
