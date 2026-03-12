@@ -1,7 +1,3 @@
-# =====================================================
-# FINAL DASHBOARD (FULL SYSTEM + SAFE LIVE DATA)
-# =====================================================
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -11,10 +7,6 @@ from sklearn.linear_model import LinearRegression
 from risk_predictor import run_risk_checks
 from email_alert import send_alert
 
-
-# =====================================================
-# SAFE LIVE DATA FUNCTION (NO CRASH)
-# =====================================================
 @st.cache_data(ttl=300)
 def load_data():
 
@@ -55,10 +47,6 @@ def load_data():
 
     return pd.concat(all_df)
 
-
-# =====================================================
-# MAIN
-# =====================================================
 def main():
 
     df=load_data()
@@ -70,9 +58,7 @@ def main():
     ["📊 Dashboard","⚙ Investment Mix Calculator","⚠ Risk Checker","👤 User Profile"])
 
 
-# =====================================================
-# 📊 DASHBOARD (ADVANCED EDA)
-# =====================================================
+# 📊 DASHBOARD 
     if page=="📊 Dashboard":
 
         st.header("📊 Advanced Crypto EDA")
@@ -119,9 +105,7 @@ def main():
                         use_container_width=True)
 
 
-# =====================================================
 # ⚙ MIX CALCULATOR
-# =====================================================
     if page=="⚙ Investment Mix Calculator":
 
         st.header("⚙ Investment Mix Calculator")
@@ -156,10 +140,8 @@ def main():
         st.download_button("Download CSV",m.to_csv(index=False),"mix.csv")
 
 
-# =====================================================
 # ⚠ RISK CHECKER + PREDICTOR
-# =====================================================
-    if page=="⚠ Risk Checker":
+        if page=="⚠ Risk Checker":
 
         if st.button("Run Risk Check"):
             result=run_risk_checks(df)
@@ -167,10 +149,8 @@ def main():
 
             send_alert(result,st.session_state.email)
 
-        # =================================================
-        # 🔮 INVESTMENT PREDICTION (FINAL)
-        # =================================================
-
+        # 🔮 INVESTMENT PREDICTION 
+        
         st.subheader("🔮 Investment Prediction")
 
         cryptos=df["Crypto"].unique()
@@ -245,9 +225,7 @@ def main():
         st.plotly_chart(fig,use_container_width=True)
 
 
-# =================================================
-# 👤 USER PROFILE (FINAL FULL VERSION)
-# =================================================
+# 👤 USER PROFILE 
     if page=="👤 User Profile":
 
         st.header("👤 User Profile")
@@ -289,9 +267,6 @@ def main():
                 json.dump(data,f)
 
             st.success("Saved Successfully")
-
-
-# ================= TABLE =================
 
         if hold:
 
@@ -344,7 +319,6 @@ def main():
             st.dataframe(table,use_container_width=True)
 
 
-# ================= CHARTS =================
 
             st.subheader("📊 Portfolio Distribution")
 
