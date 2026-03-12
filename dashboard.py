@@ -167,24 +167,80 @@ def main():
 
             send_alert(result,st.session_state.email)
 
-        st.subheader("🔮 Prediction")
+        # =================================================
+        # 🔮 INVESTMENT PREDICTION (FINAL)
+        # =================================================
 
-        coin=st.selectbox("Crypto",df["Crypto"].unique())
-        days=st.slider("Days",1,30,7)
+        st.subheader("🔮 Investment Prediction")
+
+        cryptos=df["Crypto"].unique()
+
+        col1,col2,col3=st.columns(3)
+
+        with col1:
+            coin=st.selectbox("Select Crypto",cryptos)
+
+        with col2:
+            invest_amount=st.number_input("Invested Amount ($)",min_value=1.0,value=1000.0)
+
+        with col3:
+            days=st.slider("Days to Predict",1,30,7)
+
 
         coin_df=df[df["Crypto"]==coin].sort_values("Date")
 
+        # prepare regression
         coin_df["t"]=range(len(coin_df))
         model=LinearRegression().fit(coin_df[["t"]],coin_df["Close"])
 
         future_t=np.arange(len(coin_df),len(coin_df)+days)
-        future=model.predict(future_t.reshape(-1,1))
+        future_prices=model.predict(future_t.reshape(-1,1))
 
         future_dates=pd.date_range(coin_df["Date"].iloc[-1],periods=days+1)[1:]
 
+        # current price
+        current_price=coin_df["Close"].iloc[-1]
+
+        # predicted future price (last day)
+        future_price=future_prices[-1]
+
+        # units purchased
+        units=invest_amount/current_price
+
+        # expected value
+        expected_value=units*future_price
+
+        # profit
+        profit=expected_value-invest_amount
+        profit_pct=(profit/invest_amount)*100
+
+
+        # ================= OUTPUT =================
+
+        col1,col2,col3=st.columns(3)
+
+        col1.metric("📈 Future Price",f"${future_price:,.2f}")
+        col2.metric("💰 Expected Amount",f"${expected_value:,.2f}")
+        col3.metric("🚀 Profit %",f"{profit_pct:.2f}%")
+
+        st.success(f"${invest_amount:,.0f} → ${expected_value:,.0f} in {days} days")
+
+
+        # ================= CHART =================
+
         fig=go.Figure()
-        fig.add_trace(go.Scatter(x=coin_df["Date"],y=coin_df["Close"],name="Actual"))
-        fig.add_trace(go.Scatter(x=future_dates,y=future,name="Predicted"))
+
+        fig.add_trace(go.Scatter(
+        x=coin_df["Date"],
+        y=coin_df["Close"],
+        name="Actual"
+        ))
+
+        fig.add_trace(go.Scatter(
+        x=future_dates,
+        y=future_prices,
+        name="Predicted"
+        ))
 
         st.plotly_chart(fig,use_container_width=True)
 
